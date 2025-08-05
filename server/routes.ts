@@ -126,6 +126,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin API endpoints
+  app.get('/api/users', async (req, res) => {
+    try {
+      // Return demo users for now
+      const demoUsers = [
+        { id: '1', firstName: 'Sarah', lastName: 'Johnson', email: 'sarah@example.com', role: 'coach' },
+        { id: '2', firstName: 'Mike', lastName: 'Chen', email: 'mike@example.com', role: 'gymnast' },
+        { id: '3', firstName: 'Lisa', lastName: 'Rodriguez', email: 'lisa@example.com', role: 'gym_admin' },
+        { id: '4', firstName: 'Emma', lastName: 'Wilson', email: 'emma@example.com', role: 'gymnast' },
+        { id: '5', firstName: 'David', lastName: 'Brown', email: 'david@example.com', role: 'coach' },
+      ];
+      res.json(demoUsers);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.get('/api/revenue', async (req, res) => {
+    try {
+      // Return demo revenue data
+      const revenue = {
+        total: 28450,
+        growth: 12,
+        monthly: [
+          { month: 'Jan', amount: 15200 },
+          { month: 'Feb', amount: 18300 },
+          { month: 'Mar', amount: 22100 },
+          { month: 'Apr', amount: 28450 },
+        ]
+      };
+      res.json(revenue);
+    } catch (error) {
+      console.error("Error fetching revenue:", error);
+      res.status(500).json({ message: "Failed to fetch revenue" });
+    }
+  });
+
+  // Communications endpoints
+  app.post('/api/notifications/send', async (req, res) => {
+    try {
+      const { recipients, subject, message } = req.body;
+      
+      // Here you would integrate with email service (SendGrid, etc.)
+      console.log('Sending notification:', { recipients, subject, message });
+      
+      res.json({ 
+        message: 'Notification sent successfully',
+        recipientCount: recipients === 'all' ? 150 : 50 
+      });
+    } catch (error) {
+      console.error("Error sending notification:", error);
+      res.status(500).json({ message: "Failed to send notification" });
+    }
+  });
+
+  // Data export endpoints
+  app.get('/api/export/members', async (req, res) => {
+    try {
+      // Generate CSV export
+      const csvData = "Name,Email,Role,Gym,Join Date\nSarah Johnson,sarah@example.com,Coach,Elite Gymnastics,2024-01-15";
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=members.csv');
+      res.send(csvData);
+    } catch (error) {
+      console.error("Error exporting members:", error);
+      res.status(500).json({ message: "Failed to export members" });
+    }
+  });
+
+  app.get('/api/export/registrations', async (req, res) => {
+    try {
+      const csvData = "Event,Gymnast,Registration Date,Payment Status\nSpring Classic,Emma Wilson,2024-01-20,Paid";
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=registrations.csv');
+      res.send(csvData);
+    } catch (error) {
+      console.error("Error exporting registrations:", error);
+      res.status(500).json({ message: "Failed to export registrations" });
+    }
+  });
+
+  app.get('/api/export/financials', async (req, res) => {
+    try {
+      const csvData = "Date,Description,Amount,Type\n2024-01-15,Gym Membership Fee,$150,Income\n2024-01-20,Event Registration,$100,Income";
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=financials.csv');
+      res.send(csvData);
+    } catch (error) {
+      console.error("Error exporting financials:", error);
+      res.status(500).json({ message: "Failed to export financials" });
+    }
+  });
+
   // Gym registration
   app.post('/api/gyms', async (req, res) => {
     try {
