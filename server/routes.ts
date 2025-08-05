@@ -10,7 +10,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
 }
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-11-20.acacia",
+  apiVersion: "2025-07-30.basil",
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -525,8 +525,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         emergencyContact: req.body.emergencyContact || null,
         emergencyPhone: req.body.emergencyPhone || null,
         medicalInfo: req.body.medicalInfo || null,
-        type: "team" as const,
-        approved: false
+        type: "team" as const
       };
 
       const gymnast = await storage.createGymnast(gymnastData);
@@ -1097,7 +1096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertRegistrationRequestSchema.parse(req.body);
       
       // Check if the gym allows self-registration
-      const gym = await storage.getGym(validatedData.gymId);
+      const gym = await storage.getGym(validatedData.gymId!);
       if (!gym || !gym.allowSelfRegistration) {
         return res.status(403).json({ 
           message: "Self-registration is not allowed for this gym" 
@@ -1108,7 +1107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Send notification email to coaches of this gym
       try {
-        const coaches = await storage.getCoachesByGym(validatedData.gymId);
+        const coaches = await storage.getCoachesByGym(validatedData.gymId!);
         const emailTemplate = emailTemplates.coachNotification(request, gym.name);
         
         for (const coach of coaches) {
@@ -1201,8 +1200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parentPhone: request.parentPhone,
         emergencyContact: request.emergencyContact,
         emergencyPhone: request.emergencyPhone,
-        medicalInfo: request.medicalInfo,
-        approved: true
+        medicalInfo: request.medicalInfo
       });
 
       // Send approval email
