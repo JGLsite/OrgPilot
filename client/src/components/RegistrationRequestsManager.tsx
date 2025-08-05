@@ -32,11 +32,10 @@ export function RegistrationRequestsManager({ gymId, gymName }: RegistrationRequ
 
   const approveMutation = useMutation({
     mutationFn: async (requestId: string) => {
-      return apiRequest(`/api/registration-requests/${requestId}/approve`, {
-        method: "POST",
-      });
+      return apiRequest("POST", `/api/registration-requests/${requestId}/approve`);
     },
-    onSuccess: (data) => {
+    onSuccess: async (response) => {
+      const data = await response.json();
       queryClient.invalidateQueries({ queryKey: ["/api/registration-requests/gym", gymId] });
       queryClient.invalidateQueries({ queryKey: ["/api/gymnasts"] });
       setIsApproveDialogOpen(false);
@@ -58,10 +57,7 @@ export function RegistrationRequestsManager({ gymId, gymName }: RegistrationRequ
 
   const rejectMutation = useMutation({
     mutationFn: async ({ requestId, reason }: { requestId: string; reason?: string }) => {
-      return apiRequest(`/api/registration-requests/${requestId}/reject`, {
-        method: "POST",
-        body: { reason },
-      });
+      return apiRequest("POST", `/api/registration-requests/${requestId}/reject`, { reason });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/registration-requests/gym", gymId] });

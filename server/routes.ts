@@ -1114,6 +1114,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== GYMNAST REGISTRATION WORKFLOW ROUTES =====
 
   // Public self-registration route
+  // Test endpoints for registration requests (temporary)
+  app.get('/api/registration-requests/all', async (req, res) => {
+    try {
+      const requests = await storage.getAllRegistrationRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching all registration requests:", error);
+      res.status(500).json({ message: "Failed to fetch registration requests" });
+    }
+  });
+
+  app.post('/api/registration-requests/:id/approve-test', async (req, res) => {
+    try {
+      const request = await storage.getRegistrationRequest(req.params.id);
+      if (!request) {
+        return res.status(404).json({ message: "Registration request not found" });
+      }
+
+      // Approve the request
+      const approvedRequest = await storage.approveRegistrationRequest(req.params.id, 'test-admin');
+      
+      // Create gymnast account
+      const newGymnast = await storage.createGymnast({
+        gymId: request.gymId,
+        firstName: request.firstName,
+        lastName: request.lastName,
+        email: request.email,
+        birthDate: request.birthDate,
+        level: request.level,
+        type: request.type,
+        parentFirstName: request.parentFirstName,
+        parentLastName: request.parentLastName,
+        parentEmail: request.parentEmail,
+        parentPhone: request.parentPhone,
+        emergencyContact: request.emergencyContact,
+        emergencyPhone: request.emergencyPhone,
+        medicalInfo: request.medicalInfo
+      });
+
+      res.json({ 
+        request: approvedRequest, 
+        gymnast: newGymnast,
+        message: "Registration approved and gymnast account created" 
+      });
+    } catch (error) {
+      console.error("Error approving registration request:", error);
+      res.status(500).json({ message: "Failed to approve registration request" });
+    }
+  });
+
   app.post('/api/registration-requests', async (req, res) => {
     try {
       const validatedData = insertRegistrationRequestSchema.parse(req.body);

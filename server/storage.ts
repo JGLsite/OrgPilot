@@ -599,6 +599,11 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(registrationRequests.createdAt));
   }
 
+  async getAllRegistrationRequests(): Promise<RegistrationRequest[]> {
+    return db.select().from(registrationRequests)
+      .orderBy(desc(registrationRequests.createdAt));
+  }
+
   async getRegistrationRequest(id: string): Promise<RegistrationRequest | undefined> {
     const [request] = await db.select().from(registrationRequests).where(eq(registrationRequests.id, id));
     return request;
