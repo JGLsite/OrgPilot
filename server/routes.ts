@@ -490,23 +490,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add new gym
+  // Add new team/gym registration
   app.post('/api/gyms', async (req, res) => {
     try {
-      const gymData = req.body;
+      const {
+        adminFirstName,
+        adminLastName, 
+        adminEmail,
+        teamName,
+        city,
+        website,
+        phone,
+        address,
+        state,
+        zipCode,
+        establishedYear,
+        facilitySize
+      } = req.body;
+
+      // Validate required fields
+      if (!adminFirstName || !adminLastName || !adminEmail || !teamName || !city) {
+        return res.status(400).json({ 
+          message: 'Missing required fields: Administrator name, email, team name, and city are required' 
+        });
+      }
+
       const newGym = {
         id: `gym_${Date.now()}`,
-        ...gymData,
+        name: teamName,
+        city,
+        state: state || '',
         status: 'pending',
+        address: address || '',
+        zipCode: zipCode || '',
+        phone: phone || '',
+        email: adminEmail,
+        website: website || '',
+        establishedYear: establishedYear || '',
+        facilitySize: facilitySize || '',
         activeCoaches: 0,
         activeGymnasts: 0,
+        // Team administrator information
+        adminFirstName,
+        adminLastName,
+        adminEmail,
         createdAt: new Date().toISOString()
       };
       
-      res.status(201).json({ message: 'Gym created successfully', gym: newGym });
+      res.status(201).json({ 
+        message: 'Team registration submitted successfully. Pending approval.',
+        gym: newGym 
+      });
     } catch (error) {
-      console.error("Error creating gym:", error);
-      res.status(500).json({ message: "Failed to create gym" });
+      console.error("Error creating team registration:", error);
+      res.status(500).json({ message: "Failed to register team" });
     }
   });
 

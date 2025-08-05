@@ -1106,14 +1106,21 @@ export default function AdminDashboard() {
     const [selectedGym, setSelectedGym] = useState<any>(null);
     const [showAddGym, setShowAddGym] = useState(false);
     const [newGymForm, setNewGymForm] = useState({
-      name: '',
-      address: '',
+      // Team administrator info
+      adminFirstName: '',
+      adminLastName: '',
+      adminEmail: '',
+      
+      // Team/gym info
+      teamName: '',
       city: '',
+      website: '',
+      
+      // Optional additional details
+      phone: '',
+      address: '',
       state: '',
       zipCode: '',
-      phone: '',
-      email: '',
-      website: '',
       establishedYear: '',
       facilitySize: ''
     });
@@ -1124,11 +1131,12 @@ export default function AdminDashboard() {
         return response.json();
       },
       onSuccess: () => {
-        toast({ title: "Success", description: "Gym added successfully" });
+        toast({ title: "Success", description: "Team registration submitted successfully" });
         setShowAddGym(false);
         setNewGymForm({
-          name: '', address: '', city: '', state: '', zipCode: '',
-          phone: '', email: '', website: '', establishedYear: '', facilitySize: ''
+          adminFirstName: '', adminLastName: '', adminEmail: '',
+          teamName: '', city: '', website: '',
+          phone: '', address: '', state: '', zipCode: '', establishedYear: '', facilitySize: ''
         });
         queryClient.invalidateQueries({ queryKey: ['/api/gyms'] });
       },
@@ -1169,10 +1177,10 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Gym Management</h2>
-            <p className="text-gray-600">Manage all gyms in the league</p>
+            <h2 className="text-2xl font-bold text-gray-900">Team Management</h2>
+            <p className="text-gray-600">Manage all teams and gyms in the league</p>
           </div>
-          <Button onClick={() => setShowAddGym(true)}>+ Add New Gym</Button>
+          <Button onClick={() => setShowAddGym(true)}>+ Register New Team</Button>
         </div>
 
         {/* Gym Stats */}
@@ -1272,106 +1280,137 @@ export default function AdminDashboard() {
           <Dialog open={showAddGym} onOpenChange={setShowAddGym}>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Add New Gym</DialogTitle>
-                <DialogDescription>Enter the details for the new gym</DialogDescription>
+                <DialogTitle>Register New Team/Gym</DialogTitle>
+                <DialogDescription>Enter team administrator and gym details for registration</DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Gym Name *</Label>
-                    <Input 
-                      value={newGymForm.name}
-                      onChange={(e) => setNewGymForm({...newGymForm, name: e.target.value})}
-                      placeholder="Enter gym name"
-                    />
+              <div className="space-y-6">
+                {/* Team Administrator Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Team Administrator Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>First Name *</Label>
+                      <Input 
+                        value={newGymForm.adminFirstName}
+                        onChange={(e) => setNewGymForm({...newGymForm, adminFirstName: e.target.value})}
+                        placeholder="Administrator first name"
+                      />
+                    </div>
+                    <div>
+                      <Label>Last Name *</Label>
+                      <Input 
+                        value={newGymForm.adminLastName}
+                        onChange={(e) => setNewGymForm({...newGymForm, adminLastName: e.target.value})}
+                        placeholder="Administrator last name"
+                      />
+                    </div>
                   </div>
                   <div>
-                    <Label>Email *</Label>
+                    <Label>Email Address *</Label>
                     <Input 
                       type="email"
-                      value={newGymForm.email}
-                      onChange={(e) => setNewGymForm({...newGymForm, email: e.target.value})}
-                      placeholder="contact@gym.com"
+                      value={newGymForm.adminEmail}
+                      onChange={(e) => setNewGymForm({...newGymForm, adminEmail: e.target.value})}
+                      placeholder="admin@teamname.com"
                     />
                   </div>
                 </div>
-                <div>
-                  <Label>Address *</Label>
-                  <Input 
-                    value={newGymForm.address}
-                    onChange={(e) => setNewGymForm({...newGymForm, address: e.target.value})}
-                    placeholder="Street address"
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-4">
+
+                {/* Team/Gym Information Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Team Information</h3>
                   <div>
-                    <Label>City *</Label>
+                    <Label>Team Name *</Label>
                     <Input 
-                      value={newGymForm.city}
-                      onChange={(e) => setNewGymForm({...newGymForm, city: e.target.value})}
-                      placeholder="City"
+                      value={newGymForm.teamName}
+                      onChange={(e) => setNewGymForm({...newGymForm, teamName: e.target.value})}
+                      placeholder="Enter team/gym name"
                     />
                   </div>
-                  <div>
-                    <Label>State *</Label>
-                    <Input 
-                      value={newGymForm.state}
-                      onChange={(e) => setNewGymForm({...newGymForm, state: e.target.value})}
-                      placeholder="State"
-                    />
-                  </div>
-                  <div>
-                    <Label>Zip Code *</Label>
-                    <Input 
-                      value={newGymForm.zipCode}
-                      onChange={(e) => setNewGymForm({...newGymForm, zipCode: e.target.value})}
-                      placeholder="12345"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>City *</Label>
+                      <Input 
+                        value={newGymForm.city}
+                        onChange={(e) => setNewGymForm({...newGymForm, city: e.target.value})}
+                        placeholder="City"
+                      />
+                    </div>
+                    <div>
+                      <Label>Website (Optional)</Label>
+                      <Input 
+                        value={newGymForm.website}
+                        onChange={(e) => setNewGymForm({...newGymForm, website: e.target.value})}
+                        placeholder="www.teamname.com"
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                {/* Optional Additional Details */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Additional Information (Optional)</h3>
                   <div>
-                    <Label>Phone</Label>
+                    <Label>Full Address</Label>
                     <Input 
-                      value={newGymForm.phone}
-                      onChange={(e) => setNewGymForm({...newGymForm, phone: e.target.value})}
-                      placeholder="(555) 123-4567"
+                      value={newGymForm.address}
+                      onChange={(e) => setNewGymForm({...newGymForm, address: e.target.value})}
+                      placeholder="Street address"
                     />
                   </div>
-                  <div>
-                    <Label>Website</Label>
-                    <Input 
-                      value={newGymForm.website}
-                      onChange={(e) => setNewGymForm({...newGymForm, website: e.target.value})}
-                      placeholder="www.gym.com"
-                    />
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label>State</Label>
+                      <Input 
+                        value={newGymForm.state}
+                        onChange={(e) => setNewGymForm({...newGymForm, state: e.target.value})}
+                        placeholder="State"
+                      />
+                    </div>
+                    <div>
+                      <Label>Zip Code</Label>
+                      <Input 
+                        value={newGymForm.zipCode}
+                        onChange={(e) => setNewGymForm({...newGymForm, zipCode: e.target.value})}
+                        placeholder="12345"
+                      />
+                    </div>
+                    <div>
+                      <Label>Phone</Label>
+                      <Input 
+                        value={newGymForm.phone}
+                        onChange={(e) => setNewGymForm({...newGymForm, phone: e.target.value})}
+                        placeholder="(555) 123-4567"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Established Year</Label>
+                      <Input 
+                        value={newGymForm.establishedYear}
+                        onChange={(e) => setNewGymForm({...newGymForm, establishedYear: e.target.value})}
+                        placeholder="2020"
+                      />
+                    </div>
+                    <div>
+                      <Label>Facility Size</Label>
+                      <Input 
+                        value={newGymForm.facilitySize}
+                        onChange={(e) => setNewGymForm({...newGymForm, facilitySize: e.target.value})}
+                        placeholder="10,000 sq ft"
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Established Year</Label>
-                    <Input 
-                      value={newGymForm.establishedYear}
-                      onChange={(e) => setNewGymForm({...newGymForm, establishedYear: e.target.value})}
-                      placeholder="2020"
-                    />
-                  </div>
-                  <div>
-                    <Label>Facility Size</Label>
-                    <Input 
-                      value={newGymForm.facilitySize}
-                      onChange={(e) => setNewGymForm({...newGymForm, facilitySize: e.target.value})}
-                      placeholder="10,000 sq ft"
-                    />
-                  </div>
-                </div>
+
                 <div className="flex space-x-2">
                   <Button 
                     className="flex-1" 
                     onClick={() => addGymMutation.mutate(newGymForm)}
-                    disabled={!newGymForm.name || !newGymForm.email || !newGymForm.address}
+                    disabled={!newGymForm.adminFirstName || !newGymForm.adminLastName || !newGymForm.adminEmail || !newGymForm.teamName || !newGymForm.city}
                   >
-                    {addGymMutation.isPending ? 'Adding...' : 'Add Gym'}
+                    {addGymMutation.isPending ? 'Registering...' : 'Register Team'}
                   </Button>
                   <Button variant="outline" onClick={() => setShowAddGym(false)}>
                     Cancel
