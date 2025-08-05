@@ -8,45 +8,43 @@ import { apiRequest } from '@/lib/queryClient';
 export default function DemoLogin() {
   const { toast } = useToast();
 
-  const demoLoginMutation = useMutation({
-    mutationFn: async (role: string) => {
-      const response = await apiRequest('POST', '/api/demo-login', { role });
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Demo Login Successful!",
-        description: `Logged in as ${data.user.firstName} ${data.user.lastName} (${data.user.role})`,
-      });
-      
-      // Redirect based on role
-      setTimeout(() => {
-        switch (data.user.role) {
-          case 'admin':
-            window.location.href = '/admin-dashboard';
-            break;
-          case 'gym_admin':
-            window.location.href = '/gym-dashboard';
-            break;
-          case 'coach':
-            window.location.href = '/coach-dashboard';
-            break;
-          case 'gymnast':
-            window.location.href = '/gymnast-dashboard';
-            break;
-          default:
-            window.location.href = '/';
-        }
-      }, 1000);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Demo Login Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  const handleDemoLogin = (role: string) => {
+    // Store demo user in localStorage for simple demo purposes
+    const demoUser = {
+      id: `demo-${role}-${Date.now()}`,
+      email: `${role}@jgl.demo`,
+      firstName: 'Demo',
+      lastName: role.charAt(0).toUpperCase() + role.slice(1),
+      role: role,
+    };
+    
+    localStorage.setItem('demo-user', JSON.stringify(demoUser));
+    
+    toast({
+      title: "Demo Login Successful!",
+      description: `Logged in as ${demoUser.firstName} ${demoUser.lastName} (${demoUser.role})`,
+    });
+    
+    // Redirect based on role
+    setTimeout(() => {
+      switch (role) {
+        case 'admin':
+          window.location.href = '/admin-dashboard';
+          break;
+        case 'gym_admin':
+          window.location.href = '/gym-dashboard';
+          break;
+        case 'coach':
+          window.location.href = '/coach-dashboard';
+          break;
+        case 'gymnast':
+          window.location.href = '/gymnast-dashboard';
+          break;
+        default:
+          window.location.href = '/';
+      }
+    }, 1000);
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -58,39 +56,31 @@ export default function DemoLogin() {
         <CardContent className="space-y-4">
           <div className="grid gap-3">
             <Button 
-              onClick={() => demoLoginMutation.mutate('admin')}
-              disabled={demoLoginMutation.isPending}
+              onClick={() => handleDemoLogin('admin')}
               className="w-full bg-red-600 hover:bg-red-700"
             >
-              <i className="fas fa-crown mr-2"></i>
-              League Admin
+              👑 League Admin
             </Button>
             
             <Button 
-              onClick={() => demoLoginMutation.mutate('gym_admin')}
-              disabled={demoLoginMutation.isPending}
+              onClick={() => handleDemoLogin('gym_admin')}
               className="w-full bg-blue-600 hover:bg-blue-700"
             >
-              <i className="fas fa-building mr-2"></i>
-              Gym Admin
+              🏢 Gym Admin
             </Button>
             
             <Button 
-              onClick={() => demoLoginMutation.mutate('coach')}
-              disabled={demoLoginMutation.isPending}
+              onClick={() => handleDemoLogin('coach')}
               className="w-full bg-green-600 hover:bg-green-700"
             >
-              <i className="fas fa-whistle mr-2"></i>
-              Coach
+              🎯 Coach
             </Button>
             
             <Button 
-              onClick={() => demoLoginMutation.mutate('gymnast')}
-              disabled={demoLoginMutation.isPending}
+              onClick={() => handleDemoLogin('gymnast')}
               className="w-full bg-purple-600 hover:bg-purple-700"
             >
-              <i className="fas fa-medal mr-2"></i>
-              Gymnast Portal
+              🏅 Gymnast Portal
             </Button>
           </div>
 
