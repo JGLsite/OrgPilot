@@ -54,7 +54,7 @@ export default function GymnastRegistration() {
   });
 
   // Fetch available gyms that allow self-registration
-  const { data: gyms = [], isLoading: gymsLoading } = useQuery({
+  const { data: gyms = [], isLoading: gymsLoading } = useQuery<any[]>({
     queryKey: ["/api/gyms"],
   });
 
@@ -63,10 +63,7 @@ export default function GymnastRegistration() {
   const registrationMutation = useMutation({
     mutationFn: async (data: RegistrationFormData) => {
       const { confirmParentEmail, ...registrationData } = data;
-      return apiRequest("/api/registration-requests", {
-        method: "POST",
-        body: registrationData,
-      });
+      return apiRequest("/api/registration-requests", "POST", registrationData);
     },
     onSuccess: () => {
       setIsSubmitted(true);
@@ -179,7 +176,7 @@ export default function GymnastRegistration() {
                           const gym = availableGyms.find((g: any) => g.id === value);
                           setSelectedGymName(gym?.name || "");
                         }}
-                        defaultValue={field.value}
+                        defaultValue={field.value || ""}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -243,7 +240,7 @@ export default function GymnastRegistration() {
                       <FormItem>
                         <FormLabel>Gymnast Email (Optional)</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="gymnast@example.com" {...field} />
+                          <Input type="email" placeholder="gymnast@example.com" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -301,7 +298,7 @@ export default function GymnastRegistration() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Gymnast Type *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || "team"}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select type" />
@@ -331,7 +328,7 @@ export default function GymnastRegistration() {
                         <FormItem>
                           <FormLabel>Parent First Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter parent first name" {...field} />
+                            <Input placeholder="Enter parent first name" {...field} value={field.value || ""} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -345,7 +342,7 @@ export default function GymnastRegistration() {
                         <FormItem>
                           <FormLabel>Parent Last Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter parent last name" {...field} />
+                            <Input placeholder="Enter parent last name" {...field} value={field.value || ""} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -361,7 +358,7 @@ export default function GymnastRegistration() {
                         <FormItem>
                           <FormLabel>Parent Email *</FormLabel>
                           <FormControl>
-                            <Input type="email" placeholder="parent@example.com" {...field} />
+                            <Input type="email" placeholder="parent@example.com" {...field} value={field.value || ""} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -390,7 +387,7 @@ export default function GymnastRegistration() {
                       <FormItem>
                         <FormLabel>Parent Phone</FormLabel>
                         <FormControl>
-                          <Input placeholder="(555) 123-4567" {...field} />
+                          <Input placeholder="(555) 123-4567" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -410,7 +407,7 @@ export default function GymnastRegistration() {
                         <FormItem>
                           <FormLabel>Emergency Contact Name</FormLabel>
                           <FormControl>
-                            <Input placeholder="Full name" {...field} />
+                            <Input placeholder="Full name" {...field} value={field.value || ""} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -424,7 +421,7 @@ export default function GymnastRegistration() {
                         <FormItem>
                           <FormLabel>Emergency Contact Phone</FormLabel>
                           <FormControl>
-                            <Input placeholder="(555) 123-4567" {...field} />
+                            <Input placeholder="(555) 123-4567" {...field} value={field.value || ""} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -444,7 +441,8 @@ export default function GymnastRegistration() {
                         <Textarea 
                           placeholder="Any allergies, medical conditions, or special considerations the coaches should know about..."
                           className="min-h-[100px]"
-                          {...field} 
+                          {...field}
+                          value={field.value || ""}
                         />
                       </FormControl>
                       <FormMessage />
