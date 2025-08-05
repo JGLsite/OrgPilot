@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -21,33 +21,33 @@ export default function AdminDashboard() {
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("dashboard");
 
-  // Stats queries
-  const { data: gyms = [] } = useQuery({
+  // Stats queries with proper typing
+  const { data: gyms = [] } = useQuery<any[]>({
     queryKey: ['/api/gyms'],
     retry: false,
   });
 
-  const { data: events = [] } = useQuery({
+  const { data: events = [] } = useQuery<any[]>({
     queryKey: ['/api/events'],
     retry: false,
   });
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<any[]>({
     queryKey: ['/api/users'],
     retry: false,
   });
 
-  const { data: gymnasts = [] } = useQuery({
+  const { data: gymnasts = [] } = useQuery<any[]>({
     queryKey: ['/api/gymnasts'],
     retry: false,
   });
 
-  const { data: emailTemplates = [] } = useQuery({
+  const { data: emailTemplates = [] } = useQuery<any[]>({
     queryKey: ['/api/email-templates'],
     retry: false,
   });
 
-  const { data: emailHistory = [] } = useQuery({
+  const { data: emailHistory = [] } = useQuery<any[]>({
     queryKey: ['/api/emails/history'],
     retry: false,
   });
@@ -581,10 +581,10 @@ export default function AdminDashboard() {
 
   // Gymnast Management Content
   const GymnastManagementContent = () => {
-    const [selectedGymnast, setSelectedGymnast] = useState(null);
+    const [selectedGymnast, setSelectedGymnast] = useState<any>(null);
     
     const updateGymnastStatus = useMutation({
-      mutationFn: async ({ id, status }) => {
+      mutationFn: async ({ id, status }: { id: string; status: string }) => {
         const response = await apiRequest('PATCH', `/api/gymnasts/${id}/status`, { status });
         return response.json();
       },
@@ -695,6 +695,9 @@ export default function AdminDashboard() {
                 <DialogTitle>
                   {selectedGymnast.id ? 'Gymnast Details' : 'Add New Gymnast'}
                 </DialogTitle>
+                <DialogDescription>
+                  {selectedGymnast.id ? 'View and manage gymnast information' : 'Add a new gymnast to the league'}
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 {selectedGymnast.id ? (
@@ -817,11 +820,11 @@ export default function AdminDashboard() {
     const [activeEmailTab, setActiveEmailTab] = useState('compose');
 
     const sendEmailMutation = useMutation({
-      mutationFn: async (emailData) => {
+      mutationFn: async (emailData: any) => {
         const response = await apiRequest('POST', '/api/emails/send', emailData);
         return response.json();
       },
-      onSuccess: (data) => {
+      onSuccess: (data: any) => {
         toast({ 
           title: "Email Sent!", 
           description: `Successfully sent to ${data.recipientCount} recipients` 
