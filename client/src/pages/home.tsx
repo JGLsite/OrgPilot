@@ -36,12 +36,21 @@ export default function Home() {
               </p>
             </div>
             
-            <button 
-              onClick={() => window.location.href = '/api/login'}
-              className="w-full bg-jgl-magenta hover:bg-pink-600 text-white py-4 rounded-full font-semibold transition-colors duration-200 text-lg"
-            >
-              Sign In to Your Portal
-            </button>
+            <div className="space-y-3">
+              <button 
+                onClick={() => window.location.href = '/api/login'}
+                className="w-full bg-jgl-magenta hover:bg-pink-600 text-white py-4 rounded-full font-semibold transition-colors duration-200 text-lg"
+              >
+                Sign In to Your Portal
+              </button>
+              
+              <button 
+                onClick={() => window.location.href = '/demo-login'}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-full font-semibold transition-colors duration-200"
+              >
+                Demo Login (Test Platform)
+              </button>
+            </div>
           </div>
         </div>
       </div>

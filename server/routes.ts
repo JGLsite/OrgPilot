@@ -68,22 +68,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Invalid bootstrap secret" });
       }
       
-      // Find first user and make them admin
-      const users = await storage.getAllUsers();
-      if (users.length === 0) {
-        return res.status(400).json({ message: "No users found. Please log in first." });
-      }
+      // Create a demo admin user for testing
+      const demoAdmin = await storage.upsertUser({
+        id: 'demo-admin-123',
+        email: 'admin@jgl.test',
+        firstName: 'JGL',
+        lastName: 'Admin',
+        role: 'admin',
+      });
       
-      const firstUser = users[0];
-      if (firstUser.role === 'admin') {
-        return res.json({ message: "Admin already exists", user: firstUser });
-      }
-      
-      const adminUser = await storage.updateUserRole(firstUser.id, 'admin');
-      res.json({ message: "Admin role assigned", user: adminUser });
+      res.json({ message: "Demo admin created", user: demoAdmin });
     } catch (error) {
       console.error("Error bootstrapping admin:", error);
       res.status(500).json({ message: "Failed to bootstrap admin" });
+    }
+  });
+
+  // Demo login endpoint for testing
+  app.post('/api/demo-login', async (req, res) => {
+    try {
+      const { role } = req.body;
+      const demoUser = await storage.upsertUser({
+        id: `demo-${role}-${Date.now()}`,
+        email: `${role}@jgl.test`,
+        firstName: 'Demo',
+        lastName: role.charAt(0).toUpperCase() + role.slice(1),
+        role: role,
+      });
+      
+      // Set a simple session cookie
+      req.session.userId = demoUser.id;
+      req.session.user = demoUser;
+      
+      res.json({ message: "Demo login successful", user: demoUser });
+    } catch (error) {
+      console.error("Error with demo login:", error);
+      res.status(500).json({ message: "Failed to demo login" });
+    }
+  });
+
+  // Demo auth check
+  app.get('/api/demo-auth/user', async (req: any, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Not logged in" });
+      }
+      
+      const user = await storage.getUser(req.session.userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching demo user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 

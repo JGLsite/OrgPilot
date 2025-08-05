@@ -11,6 +11,7 @@ import CoachDashboard from "@/pages/coach-dashboard";
 import GymnastDashboard from "@/pages/gymnast-dashboard";
 import AdminDashboard from "@/pages/admin-dashboard";
 import AdminSetup from "@/pages/admin-setup";
+import DemoLogin from "@/pages/demo-login";
 import Checkout from "@/pages/checkout";
 
 function Router() {
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/checkout" component={Checkout} />
       <Route path="/admin-setup" component={AdminSetup} />
+      <Route path="/demo-login" component={DemoLogin} />
       
       {isAuthenticated && user && (
         <>
