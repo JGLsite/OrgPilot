@@ -322,6 +322,12 @@ export default function AdminDashboard() {
             onClick={() => setSelectedTab("communications")}
           />
           <SidebarItem 
+            icon="📝" 
+            label="Form Builder" 
+            active={selectedTab === "forms"}
+            onClick={() => setSelectedTab("forms")}
+          />
+          <SidebarItem 
             icon="📈" 
             label="Reports" 
             active={selectedTab === "reports"}
@@ -508,6 +514,452 @@ export default function AdminDashboard() {
   );
 
   // Communications Tab
+  // Form Builder Content
+  const FormBuilderContent = () => {
+    const [selectedForm, setSelectedForm] = useState<any>(null);
+    const [showCreateForm, setShowCreateForm] = useState(false);
+    const [formConfigs, setFormConfigs] = useState([]);
+    const [currentForm, setCurrentForm] = useState({
+      name: '',
+      description: '',
+      formType: 'gymnast_registration',
+      fields: [],
+      validationRules: {},
+      isActive: true,
+      isDefault: false
+    });
+
+    // Available field types
+    const fieldTypes = [
+      { value: 'text', label: 'Text Input', icon: '📝' },
+      { value: 'email', label: 'Email', icon: '📧' },
+      { value: 'phone', label: 'Phone Number', icon: '📞' },
+      { value: 'date', label: 'Date', icon: '📅' },
+      { value: 'select', label: 'Dropdown', icon: '📋' },
+      { value: 'multiselect', label: 'Multi-Select', icon: '☑️' },
+      { value: 'textarea', label: 'Text Area', icon: '📄' },
+      { value: 'number', label: 'Number', icon: '🔢' },
+      { value: 'checkbox', label: 'Checkbox', icon: '✅' },
+      { value: 'radio', label: 'Radio Buttons', icon: '🔘' },
+      { value: 'file', label: 'File Upload', icon: '📎' }
+    ];
+
+    const formTypes = [
+      { value: 'gymnast_registration', label: 'Gymnast Registration' },
+      { value: 'event_registration', label: 'Event Registration' },
+      { value: 'gym_application', label: 'Gym Application' },
+      { value: 'coach_application', label: 'Coach Application' },
+      { value: 'spectator_registration', label: 'Spectator Registration' }
+    ];
+
+    // Query form configurations
+    const { data: formConfigurations = [], isLoading: formsLoading } = useQuery<any[]>({
+      queryKey: ['/api/form-configurations'],
+      retry: false,
+    });
+
+    // Mutations for form management
+    const createFormMutation = useMutation({
+      mutationFn: async (formData: any) => {
+        return apiRequest('POST', '/api/form-configurations', formData);
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['/api/form-configurations'] });
+        toast({ title: "Form created successfully" });
+        setShowCreateForm(false);
+        setCurrentForm({
+          name: '', description: '', formType: 'gymnast_registration',
+          fields: [], validationRules: {}, isActive: true, isDefault: false
+        });
+      },
+      onError: (error) => {
+        toast({ title: "Error", description: "Failed to create form", variant: "destructive" });
+      }
+    });
+
+    const updateFormMutation = useMutation({
+      mutationFn: async ({ id, data }: { id: string; data: any }) => {
+        return apiRequest('PATCH', `/api/form-configurations/${id}`, data);
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['/api/form-configurations'] });
+        toast({ title: "Form updated successfully" });
+      },
+      onError: (error) => {
+        toast({ title: "Error", description: "Failed to update form", variant: "destructive" });
+      }
+    });
+
+    const deleteFormMutation = useMutation({
+      mutationFn: async (id: string) => {
+        return apiRequest('DELETE', `/api/form-configurations/${id}`);
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['/api/form-configurations'] });
+        toast({ title: "Form deleted successfully" });
+      },
+      onError: (error) => {
+        toast({ title: "Error", description: "Failed to delete form", variant: "destructive" });
+      }
+    });
+
+    const addField = () => {
+      const newField = {
+        id: `field_${Date.now()}`,
+        type: 'text',
+        label: 'New Field',
+        placeholder: '',
+        required: false,
+        options: [],
+        validation: {},
+        order: currentForm.fields.length
+      };
+      setCurrentForm({
+        ...currentForm,
+        fields: [...currentForm.fields, newField]
+      });
+    };
+
+    const updateField = (fieldId: string, updates: any) => {
+      setCurrentForm({
+        ...currentForm,
+        fields: currentForm.fields.map(field => 
+          field.id === fieldId ? { ...field, ...updates } : field
+        )
+      });
+    };
+
+    const removeField = (fieldId: string) => {
+      setCurrentForm({
+        ...currentForm,
+        fields: currentForm.fields.filter(field => field.id !== fieldId)
+      });
+    };
+
+    const moveField = (fieldId: string, direction: 'up' | 'down') => {
+      const fields = [...currentForm.fields];
+      const index = fields.findIndex(f => f.id === fieldId);
+      if (index === -1) return;
+      
+      const newIndex = direction === 'up' ? index - 1 : index + 1;
+      if (newIndex < 0 || newIndex >= fields.length) return;
+      
+      [fields[index], fields[newIndex]] = [fields[newIndex], fields[index]];
+      
+      setCurrentForm({
+        ...currentForm,
+        fields: fields.map((field, idx) => ({ ...field, order: idx }))
+      });
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Form Builder</h2>
+            <p className="text-gray-600">Create and customize registration forms for your league</p>
+          </div>
+          <Button onClick={() => setShowCreateForm(true)}>+ Create New Form</Button>
+        </div>
+
+        {/* Form Configuration List */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle>Form Templates</CardTitle>
+                <CardDescription>Manage your form configurations</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {formConfigurations.map((form) => (
+                    <div
+                      key={form.id}
+                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                        selectedForm?.id === form.id ? 'border-blue-500 bg-blue-50' : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => setSelectedForm(form)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium">{form.name}</h4>
+                          <p className="text-sm text-gray-600">{form.formType.replace('_', ' ')}</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {form.isDefault && (
+                            <Badge variant="secondary">Default</Badge>
+                          )}
+                          {form.isActive ? (
+                            <Badge variant="default">Active</Badge>
+                          ) : (
+                            <Badge variant="outline">Inactive</Badge>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{form.fields?.length || 0} fields</p>
+                    </div>
+                  ))}
+                  
+                  {formConfigurations.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No forms created yet</p>
+                      <Button className="mt-2" onClick={() => setShowCreateForm(true)}>
+                        Create First Form
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Form Preview/Editor */}
+          <div className="lg:col-span-2">
+            {selectedForm ? (
+              <FormEditor form={selectedForm} />
+            ) : (
+              <Card>
+                <CardContent className="flex items-center justify-center h-96">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-2xl">📝</span>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Form to Edit</h3>
+                    <p className="text-gray-600">Choose a form from the list to view and edit its configuration</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+
+        {/* Create Form Modal */}
+        {showCreateForm && (
+          <FormBuilderModal 
+            isOpen={showCreateForm}
+            onClose={() => setShowCreateForm(false)}
+            onSave={(formData) => createFormMutation.mutate(formData)}
+          />
+        )}
+      </div>
+    );
+  };
+
+  // Form Editor Component
+  const FormEditor = ({ form }) => {
+    const [editingForm, setEditingForm] = useState(form);
+    const [previewMode, setPreviewMode] = useState(false);
+
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>{editingForm.name}</CardTitle>
+              <CardDescription>{editingForm.description}</CardDescription>
+            </div>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setPreviewMode(!previewMode)}
+              >
+                {previewMode ? 'Edit' : 'Preview'}
+              </Button>
+              <Button onClick={() => {/* Save form */}}>Save Changes</Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {previewMode ? (
+            <FormPreview form={editingForm} />
+          ) : (
+            <FormFieldEditor form={editingForm} onChange={setEditingForm} />
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Form Builder Modal Component
+  const FormBuilderModal = ({ isOpen, onClose, onSave }) => {
+    const [formData, setFormData] = useState({
+      name: '',
+      description: '',
+      formType: 'gymnast_registration',
+      fields: [],
+      validationRules: {},
+      isActive: true,
+      isDefault: false
+    });
+
+    const handleSave = () => {
+      if (!formData.name) {
+        toast({ title: "Error", description: "Form name is required", variant: "destructive" });
+        return;
+      }
+      onSave(formData);
+    };
+
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create New Form</DialogTitle>
+            <DialogDescription>
+              Set up basic information for your new form
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="formName">Form Name</Label>
+              <Input
+                id="formName"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                placeholder="e.g., Standard Gymnast Registration"
+              />
+            </div>
+            <div>
+              <Label htmlFor="formDescription">Description</Label>
+              <Textarea
+                id="formDescription"
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                placeholder="Brief description of this form..."
+              />
+            </div>
+            <div>
+              <Label htmlFor="formType">Form Type</Label>
+              <Select value={formData.formType} onValueChange={(value) => setFormData({...formData, formType: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gymnast_registration">Gymnast Registration</SelectItem>
+                  <SelectItem value="event_registration">Event Registration</SelectItem>
+                  <SelectItem value="gym_application">Gym Application</SelectItem>
+                  <SelectItem value="coach_application">Coach Application</SelectItem>
+                  <SelectItem value="spectator_registration">Spectator Registration</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
+                />
+                <Label htmlFor="isActive">Active</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isDefault"
+                  checked={formData.isDefault}
+                  onChange={(e) => setFormData({...formData, isDefault: e.target.checked})}
+                />
+                <Label htmlFor="isDefault">Set as Default</Label>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={handleSave}>Create Form</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  // Form Preview Component
+  const FormPreview = ({ form }) => (
+    <div className="border rounded-lg p-6 bg-gray-50">
+      <h3 className="text-lg font-semibold mb-4">Form Preview</h3>
+      <div className="space-y-4 bg-white p-6 rounded border">
+        {form.fields?.map((field) => (
+          <div key={field.id}>
+            <Label>{field.label} {field.required && <span className="text-red-500">*</span>}</Label>
+            {field.type === 'text' && <Input placeholder={field.placeholder} disabled />}
+            {field.type === 'email' && <Input type="email" placeholder={field.placeholder} disabled />}
+            {field.type === 'textarea' && <Textarea placeholder={field.placeholder} disabled />}
+            {field.type === 'select' && (
+              <Select disabled>
+                <SelectTrigger>
+                  <SelectValue placeholder={field.placeholder || 'Select option'} />
+                </SelectTrigger>
+              </Select>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Form Field Editor Component  
+  const FormFieldEditor = ({ form, onChange }) => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h4 className="font-medium">Form Fields</h4>
+        <Button size="sm" onClick={() => {/* Add field logic */}}>+ Add Field</Button>
+      </div>
+      <div className="space-y-3">
+        {form.fields?.map((field, index) => (
+          <div key={field.id} className="border rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium">#{index + 1}</span>
+                <Input
+                  value={field.label}
+                  onChange={(e) => {/* Update field label */}}
+                  className="font-medium"
+                />
+              </div>
+              <div className="flex space-x-2">
+                <Button size="sm" variant="outline">↑</Button>
+                <Button size="sm" variant="outline">↓</Button>
+                <Button size="sm" variant="outline">🗑️</Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Field Type</Label>
+                <Select value={field.type}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">Text</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="textarea">Text Area</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Placeholder</Label>
+                <Input value={field.placeholder} onChange={() => {}} />
+              </div>
+              <div className="flex items-center space-x-4 pt-6">
+                <div className="flex items-center space-x-2">
+                  <input type="checkbox" checked={field.required} />
+                  <Label>Required</Label>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+        
+        {(!form.fields || form.fields.length === 0) && (
+          <div className="text-center py-8 text-gray-500">
+            <p>No fields added yet</p>
+            <Button className="mt-2">Add First Field</Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   const CommunicationsContent = () => (
     <div className="space-y-6">
       <div>
@@ -1928,6 +2380,8 @@ export default function AdminDashboard() {
         return <EmailSystemContent />;
       case "communications":
         return <CommunicationsContent />;
+      case "forms":
+        return <FormBuilderContent />;
       case "reports":
         return <ReportsContent />;
       case "settings":

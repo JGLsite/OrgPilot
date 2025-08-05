@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertGymSchema, insertGymnastSchema, insertEventSchema, insertChallengeSchema, insertRewardSchema } from "@shared/schema";
+import { insertGymSchema, insertGymnastSchema, insertEventSchema, insertChallengeSchema, insertRewardSchema, insertFormConfigurationSchema } from "@shared/schema";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -989,6 +989,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting gymnast:", error);
       res.status(400).json({ message: "Failed to delete gymnast" });
+    }
+  });
+
+  // Form Configuration routes
+  app.get('/api/form-configurations', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const formConfigurations = await storage.getFormConfigurations();
+      res.json(formConfigurations);
+    } catch (error) {
+      console.error('Error fetching form configurations:', error);
+      res.status(500).json({ error: 'Failed to fetch form configurations' });
+    }
+  });
+
+  app.get('/api/form-configurations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const formConfiguration = await storage.getFormConfiguration(req.params.id);
+      if (!formConfiguration) {
+        return res.status(404).json({ error: 'Form configuration not found' });
+      }
+      res.json(formConfiguration);
+    } catch (error) {
+      console.error('Error fetching form configuration:', error);
+      res.status(500).json({ error: 'Failed to fetch form configuration' });
+    }
+  });
+
+  app.post('/api/form-configurations', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const validatedData = insertFormConfigurationSchema.parse(req.body);
+      const newFormConfiguration = await storage.createFormConfiguration(validatedData);
+      res.status(201).json(newFormConfiguration);
+    } catch (error) {
+      console.error('Error creating form configuration:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Invalid form configuration data', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to create form configuration' });
+    }
+  });
+
+  app.patch('/api/form-configurations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const partialData = insertFormConfigurationSchema.partial().parse(req.body);
+      const updatedFormConfiguration = await storage.updateFormConfiguration(req.params.id, partialData);
+      res.json(updatedFormConfiguration);
+    } catch (error) {
+      console.error('Error updating form configuration:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Invalid form configuration data', details: error.errors });
+      }
+      res.status(500).json({ error: 'Failed to update form configuration' });
+    }
+  });
+
+  app.delete('/api/form-configurations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await storage.deleteFormConfiguration(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting form configuration:', error);
+      res.status(500).json({ error: 'Failed to delete form configuration' });
     }
   });
 

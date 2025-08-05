@@ -13,6 +13,7 @@ import {
   spectatorTickets,
   gymCoaches,
   gymEventEstimates,
+  formConfigurations,
   type User,
   type UpsertUser,
   type Gym,
@@ -25,6 +26,8 @@ import {
   type InsertChallenge,
   type Reward,
   type InsertReward,
+  type FormConfiguration,
+  type InsertFormConfiguration,
   type Score,
   type EventSession,
   type EventRegistration,
@@ -96,6 +99,13 @@ export interface IStorage {
   createEventRegistration(registration: any): Promise<EventRegistration>;
   getLeaderboard(type: string, level?: string, gymId?: string): Promise<any[]>;
   
+  // Form configuration operations
+  createFormConfiguration(formConfig: InsertFormConfiguration): Promise<FormConfiguration>;
+  getFormConfigurations(): Promise<FormConfiguration[]>;
+  getFormConfiguration(id: string): Promise<FormConfiguration | undefined>;
+  updateFormConfiguration(id: string, updates: Partial<InsertFormConfiguration>): Promise<FormConfiguration>;
+  deleteFormConfiguration(id: string): Promise<void>;
+
   // Other operations as needed
 }
 
@@ -283,6 +293,34 @@ export class DatabaseStorage implements IStorage {
 
   async deleteGymnast(gymnastId: string): Promise<void> {
     await db.delete(gymnasts).where(eq(gymnasts.id, gymnastId));
+  }
+
+  // Form Configuration operations
+  async createFormConfiguration(formConfig: InsertFormConfiguration): Promise<FormConfiguration> {
+    const [newFormConfig] = await db.insert(formConfigurations).values(formConfig).returning();
+    return newFormConfig;
+  }
+
+  async getFormConfigurations(): Promise<FormConfiguration[]> {
+    return db.select().from(formConfigurations).orderBy(asc(formConfigurations.createdAt));
+  }
+
+  async getFormConfiguration(id: string): Promise<FormConfiguration | undefined> {
+    const [formConfig] = await db.select().from(formConfigurations).where(eq(formConfigurations.id, id));
+    return formConfig;
+  }
+
+  async updateFormConfiguration(id: string, updates: Partial<InsertFormConfiguration>): Promise<FormConfiguration> {
+    const [formConfig] = await db
+      .update(formConfigurations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(formConfigurations.id, id))
+      .returning();
+    return formConfig;
+  }
+
+  async deleteFormConfiguration(id: string): Promise<void> {
+    await db.delete(formConfigurations).where(eq(formConfigurations.id, id));
   }
 
   // Event operations

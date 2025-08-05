@@ -204,6 +204,20 @@ export const rewardRedemptions = pgTable("reward_redemptions", {
   redeemedAt: timestamp("redeemed_at").defaultNow(),
 });
 
+// Form configurations table
+export const formConfigurations = pgTable("form_configurations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  formType: varchar("form_type").notNull(), // 'gymnast_registration', 'event_registration', etc
+  name: varchar("name").notNull(),
+  description: text("description"),
+  fields: jsonb("fields").notNull(), // JSON array of field configurations
+  validationRules: jsonb("validation_rules"), // JSON object with validation settings
+  isActive: boolean("is_active").default(true),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Gym estimates for events
 export const gymEventEstimates = pgTable("gym_event_estimates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -255,6 +269,12 @@ export const insertRewardSchema = createInsertSchema(rewards).omit({
   createdAt: true,
 });
 
+export const insertFormConfigurationSchema = createInsertSchema(formConfigurations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -268,6 +288,8 @@ export type InsertChallenge = z.infer<typeof insertChallengeSchema>;
 export type Challenge = typeof challenges.$inferSelect;
 export type InsertReward = z.infer<typeof insertRewardSchema>;
 export type Reward = typeof rewards.$inferSelect;
+export type InsertFormConfiguration = z.infer<typeof insertFormConfigurationSchema>;
+export type FormConfiguration = typeof formConfigurations.$inferSelect;
 export type Score = typeof scores.$inferSelect;
 export type EventSession = typeof eventSessions.$inferSelect;
 export type EventRegistration = typeof eventRegistrations.$inferSelect;
