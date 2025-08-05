@@ -746,9 +746,26 @@ export default function AdminDashboard() {
   };
 
   // Form Editor Component
-  const FormEditor = ({ form }) => {
+  const FormEditor = ({ form }: { form: any }) => {
     const [editingForm, setEditingForm] = useState(form);
     const [previewMode, setPreviewMode] = useState(false);
+
+    const saveFormMutation = useMutation({
+      mutationFn: async (formData: any) => {
+        return apiRequest('PATCH', `/api/form-configurations/${form.id}`, formData);
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['/api/form-configurations'] });
+        toast({ title: "Form updated successfully" });
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Failed to update form", variant: "destructive" });
+      }
+    });
+
+    const handleSave = () => {
+      saveFormMutation.mutate(editingForm);
+    };
 
     return (
       <Card>
@@ -765,7 +782,9 @@ export default function AdminDashboard() {
               >
                 {previewMode ? 'Edit' : 'Preview'}
               </Button>
-              <Button onClick={() => {/* Save form */}}>Save Changes</Button>
+              <Button onClick={handleSave} disabled={saveFormMutation.isPending}>
+                {saveFormMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -781,7 +800,7 @@ export default function AdminDashboard() {
   };
 
   // Form Builder Modal Component
-  const FormBuilderModal = ({ isOpen, onClose, onSave }) => {
+  const FormBuilderModal = ({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (data: any) => void }) => {
     const [formData, setFormData] = useState({
       name: '',
       description: '',
@@ -874,11 +893,11 @@ export default function AdminDashboard() {
   };
 
   // Form Preview Component
-  const FormPreview = ({ form }) => (
+  const FormPreview = ({ form }: { form: any }) => (
     <div className="border rounded-lg p-6 bg-gray-50">
       <h3 className="text-lg font-semibold mb-4">Form Preview</h3>
       <div className="space-y-4 bg-white p-6 rounded border">
-        {form.fields?.map((field) => (
+        {form.fields?.map((field: any) => (
           <div key={field.id}>
             <Label>{field.label} {field.required && <span className="text-red-500">*</span>}</Label>
             {field.type === 'text' && <Input placeholder={field.placeholder} disabled />}
@@ -893,72 +912,119 @@ export default function AdminDashboard() {
             )}
           </div>
         ))}
+        {(!form.fields || form.fields.length === 0) && (
+          <p className="text-gray-500 text-center py-8">No fields added yet</p>
+        )}
       </div>
     </div>
   );
 
   // Form Field Editor Component  
-  const FormFieldEditor = ({ form, onChange }) => (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h4 className="font-medium">Form Fields</h4>
-        <Button size="sm" onClick={() => {/* Add field logic */}}>+ Add Field</Button>
-      </div>
-      <div className="space-y-3">
-        {form.fields?.map((field, index) => (
-          <div key={field.id} className="border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium">#{index + 1}</span>
-                <Input
-                  value={field.label}
-                  onChange={(e) => {/* Update field label */}}
-                  className="font-medium"
-                />
-              </div>
-              <div className="flex space-x-2">
-                <Button size="sm" variant="outline">↑</Button>
-                <Button size="sm" variant="outline">↓</Button>
-                <Button size="sm" variant="outline">🗑️</Button>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>Field Type</Label>
-                <Select value={field.type}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="text">Text</SelectItem>
-                    <SelectItem value="email">Email</SelectItem>
-                    <SelectItem value="textarea">Text Area</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Placeholder</Label>
-                <Input value={field.placeholder} onChange={() => {}} />
-              </div>
-              <div className="flex items-center space-x-4 pt-6">
+  const FormFieldEditor = ({ form, onChange }: { form: any; onChange: (form: any) => void }) => {
+    const addField = () => {
+      const newField = {
+        id: `field_${Date.now()}`,
+        type: 'text',
+        label: 'New Field',
+        placeholder: '',
+        required: false,
+        options: [],
+        validation: {},
+        order: form.fields?.length || 0
+      };
+      onChange({
+        ...form,
+        fields: [...(form.fields || []), newField]
+      });
+    };
+
+    const updateField = (fieldId: string, updates: any) => {
+      onChange({
+        ...form,
+        fields: form.fields?.map((field: any) => 
+          field.id === fieldId ? { ...field, ...updates } : field
+        ) || []
+      });
+    };
+
+    const removeField = (fieldId: string) => {
+      onChange({
+        ...form,
+        fields: form.fields?.filter((field: any) => field.id !== fieldId) || []
+      });
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h4 className="font-medium">Form Fields</h4>
+          <Button size="sm" onClick={addField}>+ Add Field</Button>
+        </div>
+        <div className="space-y-3">
+          {form.fields?.map((field: any, index: number) => (
+            <div key={field.id} className="border rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
-                  <input type="checkbox" checked={field.required} />
-                  <Label>Required</Label>
+                  <span className="text-sm font-medium">#{index + 1}</span>
+                  <Input
+                    value={field.label}
+                    onChange={(e) => updateField(field.id, { label: e.target.value })}
+                    className="font-medium"
+                  />
+                </div>
+                <div className="flex space-x-2">
+                  <Button size="sm" variant="outline" onClick={() => removeField(field.id)}>
+                    🗑️
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label>Field Type</Label>
+                  <Select value={field.type} onValueChange={(value) => updateField(field.id, { type: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="text">Text</SelectItem>
+                      <SelectItem value="email">Email</SelectItem>
+                      <SelectItem value="textarea">Text Area</SelectItem>
+                      <SelectItem value="select">Dropdown</SelectItem>
+                      <SelectItem value="checkbox">Checkbox</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Placeholder</Label>
+                  <Input 
+                    value={field.placeholder || ''} 
+                    onChange={(e) => updateField(field.id, { placeholder: e.target.value })} 
+                  />
+                </div>
+                <div className="flex items-center space-x-4 pt-6">
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox" 
+                      checked={field.required || false}
+                      onChange={(e) => updateField(field.id, { required: e.target.checked })}
+                    />
+                    <Label>Required</Label>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
-        
-        {(!form.fields || form.fields.length === 0) && (
-          <div className="text-center py-8 text-gray-500">
-            <p>No fields added yet</p>
-            <Button className="mt-2">Add First Field</Button>
-          </div>
-        )}
+          ))}
+          
+          {(!form.fields || form.fields.length === 0) && (
+            <div className="text-center py-8 text-gray-500">
+              <p>No fields added yet</p>
+              <Button className="mt-2" onClick={addField}>Add First Field</Button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const CommunicationsContent = () => (
     <div className="space-y-6">
