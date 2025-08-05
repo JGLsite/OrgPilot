@@ -1,12 +1,53 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { apiRequest } from '@/lib/queryClient';
+import { isUnauthorizedError } from '@/lib/authUtils';
 
 export default function GymDashboard() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Fetch gym data
+  const { data: profile } = useQuery({
+    queryKey: ['/api/profile'],
+    enabled: isAuthenticated && user?.role === 'gym_admin',
+  });
+
+  const { data: gymnasts, isLoading: gymnastLoading } = useQuery({
+    queryKey: ['/api/gyms', profile?.gyms?.[0]?.id, 'gymnasts'],
+    enabled: !!profile?.gyms?.[0]?.id,
+  });
+
+  const { data: events } = useQuery({
+    queryKey: ['/api/events'],
+    enabled: isAuthenticated,
+  });
+
+  // Mutations
+  const approveGymnastMutation = useMutation({
+    mutationFn: async ({ id, approved }: { id: string; approved: boolean }) => {
+      await apiRequest('PATCH', `/api/gymnasts/${id}/approve`, { approved });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/gyms'] });
+      toast({
+        title: "Gymnast Updated",
+        description: "Gymnast approval status updated successfully.",
+      });
+    },
+  });
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -42,6 +83,8 @@ export default function GymDashboard() {
     );
   }
 
+  const currentGym = profile?.gyms?.[0];
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow">
@@ -51,6 +94,9 @@ export default function GymDashboard() {
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Gym Dashboard</h1>
                 <p className="text-gray-600">Welcome back, {user.firstName}</p>
+                {currentGym && (
+                  <p className="text-sm text-gray-500">{currentGym.name}</p>
+                )}
               </div>
               <Button 
                 onClick={() => window.location.href = '/api/logout'}

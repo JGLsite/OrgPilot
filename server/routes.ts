@@ -183,10 +183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get challenges
   app.get('/api/challenges', async (req, res) => {
     try {
-      const { level } = req.query;
-      const challenges = level 
-        ? await storage.getActiveChallengesForLevel(level as string)
-        : await storage.getChallenges();
+      const challenges = await storage.getChallenges();
       res.json(challenges);
     } catch (error) {
       console.error("Error fetching challenges:", error);
@@ -218,6 +215,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching rewards:", error);
       res.status(500).json({ message: "Failed to fetch rewards" });
+    }
+  });
+
+  // Get user profile with gym/gymnast info
+  app.get('/api/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      let profileData = { ...user };
+
+      // Get additional data based on role
+      if (user.role === 'gym_admin' || user.role === 'coach') {
+        const gyms = await storage.getGymsByUser(userId);
+        profileData.gyms = gyms;
+      }
+
+      if (user.role === 'gymnast') {
+        const gymnast = await storage.getGymnastByUserId(userId);
+        profileData.gymnast = gymnast;
+      }
+
+      res.json(profileData);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  // Event registration
+  app.post('/api/events/:eventId/register', isAuthenticated, async (req: any, res) => {
+    try {
+      const gymnastId = req.body.gymnastId;
+      const sessionIds = req.body.sessionIds;
+      
+      // Create registration record
+      const registration = await storage.createEventRegistration({
+        eventId: req.params.eventId,
+        gymnastId,
+        sessionIds,
+        registeredBy: req.user.claims.sub
+      });
+
+      res.status(201).json(registration);
+    } catch (error) {
+      console.error("Error registering for event:", error);
+      res.status(400).json({ message: "Failed to register for event" });
+    }
+  });
+
+  // Get leaderboard
+  app.get('/api/leaderboard', async (req, res) => {
+    try {
+      const { type = 'individual', level, gymId } = req.query;
+      const leaderboard = await storage.getLeaderboard(type as string, level as string, gymId as string);
+      res.json(leaderboard);
+    } catch (error) {
+      console.error("Error fetching leaderboard:", error);
+      res.status(500).json({ message: "Failed to fetch leaderboard" });
     }
   });
 
