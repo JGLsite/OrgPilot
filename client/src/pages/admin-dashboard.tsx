@@ -1118,7 +1118,16 @@ export default function AdminDashboard() {
     });
 
     const addGymMutation = useMutation({
-      mutationFn: async (gymData: any) => {
+      mutationFn: async (formData: any) => {
+        // Map frontend form fields to backend schema fields
+        const gymData = {
+          name: formData.teamName,
+          city: formData.city,
+          adminFirstName: formData.adminFirstName,
+          adminLastName: formData.adminLastName,
+          email: formData.adminEmail,
+          website: formData.website || null
+        };
         const response = await apiRequest('POST', '/api/gyms', gymData);
         return response.json();
       },
