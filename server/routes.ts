@@ -37,6 +37,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       console.error("Error fetching user:", error);
+      
+      // Handle specific validation errors
+      if (error instanceof Error) {
+        if (error.message.includes('already registered as a gym admin')) {
+          return res.status(409).json({ 
+            message: error.message,
+            field: 'email'
+          });
+        }
+      }
+      
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
@@ -80,6 +91,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Demo admin created", user: demoAdmin });
     } catch (error) {
       console.error("Error bootstrapping admin:", error);
+      
+      // Handle specific validation errors
+      if (error instanceof Error) {
+        if (error.message.includes('already registered as a gym admin')) {
+          return res.status(409).json({ 
+            message: error.message,
+            field: 'email'
+          });
+        }
+      }
+      
       res.status(500).json({ message: "Failed to bootstrap admin" });
     }
   });
@@ -103,6 +125,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Demo login successful", user: demoUser });
     } catch (error) {
       console.error("Error with demo login:", error);
+      
+      // Handle specific validation errors
+      if (error instanceof Error) {
+        if (error.message.includes('already registered as a gym admin')) {
+          return res.status(409).json({ 
+            message: error.message,
+            field: 'email'
+          });
+        }
+      }
+      
       res.status(500).json({ message: "Failed to demo login" });
     }
   });
@@ -409,6 +442,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(gym);
     } catch (error) {
       console.error("Error creating gym:", error);
+      
+      // Handle specific validation errors
+      if (error instanceof Error) {
+        if (error.message.includes('already exists')) {
+          return res.status(409).json({ 
+            message: error.message,
+            field: 'email'
+          });
+        }
+      }
+      
       res.status(400).json({ message: "Failed to create gym" });
     }
   });
@@ -476,6 +520,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(gymnast);
     } catch (error) {
       console.error("Error creating gymnast:", error);
+      
+      // Handle specific validation errors
+      if (error instanceof Error) {
+        if (error.message.includes('already has a gymnast account')) {
+          return res.status(409).json({ 
+            message: error.message,
+            field: 'userId'
+          });
+        }
+        if (error.message.includes('already registered as a gym admin')) {
+          return res.status(409).json({ 
+            message: error.message,
+            field: 'email'
+          });
+        }
+      }
+      
       res.status(400).json({ message: "Failed to create gymnast" });
     }
   });

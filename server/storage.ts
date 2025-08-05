@@ -37,6 +37,7 @@ export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   
   // Gym operations
   createGym(gym: InsertGym): Promise<Gym>;
@@ -45,6 +46,7 @@ export interface IStorage {
   deleteGym(id: string): Promise<void>;
   updateGymApproval(id: string, approved: boolean): Promise<Gym>;
   updateGymPayment(id: string, paid: boolean): Promise<Gym>;
+  getGymByEmail(email: string): Promise<Gym | undefined>;
   
   // Gymnast operations
   createGymnast(gymnast: InsertGymnast): Promise<Gymnast>;
@@ -92,11 +94,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    // Check if creating a new user (no existing user with this email)
+    if (userData.email) {
+      const existingUser = await this.getUserByEmail(userData.email);
+      if (!existingUser) {
+        // Check if this email is already used by a gym admin
+        const existingGym = await this.getGymByEmail(userData.email);
+        if (existingGym) {
+          throw new Error(`This email is already registered as a gym admin. Please use a different email or contact support.`);
+        }
+      }
+    }
+    
     const [user] = await db
       .insert(users)
       .values(userData)
       .onConflictDoUpdate({
-        target: users.id,
+        target: users.email,
         set: {
           ...userData,
           updatedAt: new Date(),
@@ -119,8 +133,25 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(users);
   }
 
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
   // Gym operations
   async createGym(gym: InsertGym): Promise<Gym> {
+    // Check if a gym with this email already exists
+    const existingGym = await this.getGymByEmail(gym.email);
+    if (existingGym) {
+      throw new Error(`A gym admin account with email ${gym.email} already exists`);
+    }
+    
+    // Check if a user with this email already exists
+    const existingUser = await this.getUserByEmail(gym.email);
+    if (existingUser) {
+      throw new Error(`An account with email ${gym.email} already exists`);
+    }
+    
     const [newGym] = await db.insert(gyms).values(gym).returning();
     return newGym;
   }
@@ -156,8 +187,31 @@ export class DatabaseStorage implements IStorage {
     await db.delete(gyms).where(eq(gyms.id, id));
   }
 
+  async getGymByEmail(email: string): Promise<Gym | undefined> {
+    const [gym] = await db.select().from(gyms).where(eq(gyms.email, email));
+    return gym;
+  }
+
   // Gymnast operations
   async createGymnast(gymnast: InsertGymnast): Promise<Gymnast> {
+    // If gymnast has a userId, check if that user already has a gymnast account
+    if (gymnast.userId) {
+      const existingGymnast = await this.getGymnastByUserId(gymnast.userId);
+      if (existingGymnast) {
+        throw new Error(`This user already has a gymnast account`);
+      }
+      
+      // Get the user to check their email
+      const user = await this.getUser(gymnast.userId);
+      if (user?.email) {
+        // Check if any gym admin has this email
+        const existingGym = await this.getGymByEmail(user.email);
+        if (existingGym) {
+          throw new Error(`An account with email ${user.email} is already registered as a gym admin`);
+        }
+      }
+    }
+    
     const [newGymnast] = await db.insert(gymnasts).values(gymnast).returning();
     return newGymnast;
   }
@@ -225,7 +279,7 @@ export class DatabaseStorage implements IStorage {
 
   async getActiveChallengesForLevel(level: string): Promise<Challenge[]> {
     return db.select().from(challenges)
-      .where(and(eq(challenges.active, true), eq(challenges.targetLevel, level)))
+      .where(eq(challenges.active, true))
       .orderBy(desc(challenges.createdAt));
   }
 
@@ -253,14 +307,18 @@ export class DatabaseStorage implements IStorage {
         email: users.email,
         firstName: users.firstName,
         lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
         role: users.role,
-        isAdmin: gymCoaches.isAdmin
+        stripeCustomerId: users.stripeCustomerId,
+        stripeSubscriptionId: users.stripeSubscriptionId,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
       })
       .from(gymCoaches)
       .innerJoin(users, eq(gymCoaches.userId, users.id))
       .where(eq(gymCoaches.gymId, gymId));
     
-    return coaches as User[];
+    return coaches;
   }
 
   // Score operations
@@ -275,15 +333,21 @@ export class DatabaseStorage implements IStorage {
         id: gyms.id,
         name: gyms.name,
         city: gyms.city,
-        state: gyms.state,
+        email: gyms.email,
+        adminFirstName: gyms.adminFirstName,
+        adminLastName: gyms.adminLastName,
+        website: gyms.website,
         approved: gyms.approved,
-        membershipPaid: gyms.membershipPaid
+        membershipPaid: gyms.membershipPaid,
+        allowSelfRegistration: gyms.allowSelfRegistration,
+        createdAt: gyms.createdAt,
+        updatedAt: gyms.updatedAt
       })
       .from(gymCoaches)
       .innerJoin(gyms, eq(gymCoaches.gymId, gyms.id))
       .where(eq(gymCoaches.userId, userId));
     
-    return userGyms as Gym[];
+    return userGyms;
   }
 
   async getGymnastByUserId(userId: string): Promise<Gymnast | undefined> {
@@ -307,12 +371,17 @@ export class DatabaseStorage implements IStorage {
       gymId: gymnasts.gymId
     }).from(gymnasts);
 
+    const conditions = [];
     if (level) {
-      query = query.where(eq(gymnasts.level, level));
+      conditions.push(eq(gymnasts.level, level as any));
     }
     
     if (gymId) {
-      query = query.where(eq(gymnasts.gymId, gymId));
+      conditions.push(eq(gymnasts.gymId, gymId));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions));
     }
 
     return query.orderBy(desc(gymnasts.points)).limit(50);

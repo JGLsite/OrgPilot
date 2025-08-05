@@ -28,6 +28,7 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL with Neon serverless hosting
 - **ORM**: Drizzle ORM for type-safe database queries
 - **Schema Management**: Drizzle Kit for migrations and schema management
+- **Data Integrity**: Email uniqueness constraints prevent duplicate gym admin and user accounts
 - **Key Entities**:
   - Users with role-based permissions (admin, gym_admin, coach, gymnast, spectator)
   - Gyms with approval workflow and payment tracking
@@ -41,6 +42,7 @@ Preferred communication style: Simple, everyday language.
 - **Session Storage**: PostgreSQL-backed sessions with configurable TTL
 - **Role-Based Access**: Five distinct user roles with different permissions
 - **Security**: HTTP-only cookies, CSRF protection, secure session management
+- **Email Uniqueness**: Enforced email uniqueness across gym admins and user accounts to prevent conflicts
 
 ### Payment Processing
 - **Provider**: Stripe integration for membership fees and event payments
