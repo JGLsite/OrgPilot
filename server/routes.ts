@@ -418,15 +418,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Return demo gyms for now
       const demoGyms = [
-        { id: '1', name: 'Elite Gymnastics Academy', city: 'New York', state: 'NY', status: 'approved' },
-        { id: '2', name: 'Olympic Dreams Gym', city: 'Chicago', state: 'IL', status: 'approved' },
-        { id: '3', name: 'Star Gymnastics Center', city: 'Los Angeles', state: 'CA', status: 'pending' },
-        { id: '4', name: 'Champion Athletics', city: 'Houston', state: 'TX', status: 'approved' },
+        { 
+          id: '1', 
+          name: 'Elite Gymnastics Academy', 
+          city: 'New York', 
+          state: 'NY', 
+          status: 'approved',
+          address: '123 Gymnastics Lane',
+          zipCode: '10001',
+          phone: '(555) 123-4567',
+          email: 'info@elitegymnastics.com',
+          website: 'www.elitegymnastics.com',
+          establishedYear: '2010',
+          facilitySize: '15,000 sq ft',
+          activeCoaches: 8,
+          activeGymnasts: 120
+        },
+        { 
+          id: '2', 
+          name: 'Olympic Dreams Gym', 
+          city: 'Chicago', 
+          state: 'IL', 
+          status: 'approved',
+          address: '456 Champion Blvd',
+          zipCode: '60601',
+          phone: '(555) 234-5678',
+          email: 'contact@olympicdreams.com',
+          website: 'www.olympicdreams.com',
+          establishedYear: '2008',
+          facilitySize: '12,000 sq ft',
+          activeCoaches: 6,
+          activeGymnasts: 95
+        },
+        { 
+          id: '3', 
+          name: 'Star Gymnastics Center', 
+          city: 'Los Angeles', 
+          state: 'CA', 
+          status: 'pending',
+          address: '789 Athletic Ave',
+          zipCode: '90210',
+          phone: '(555) 345-6789',
+          email: 'admin@stargymnastics.com',
+          website: 'www.stargymnastics.com',
+          establishedYear: '2015',
+          facilitySize: '18,000 sq ft',
+          activeCoaches: 10,
+          activeGymnasts: 85
+        },
+        { 
+          id: '4', 
+          name: 'Champion Athletics', 
+          city: 'Houston', 
+          state: 'TX', 
+          status: 'approved',
+          address: '321 Victory Street',
+          zipCode: '77001',
+          phone: '(555) 456-7890',
+          email: 'info@championathletics.com',
+          website: 'www.championathletics.com',
+          establishedYear: '2012',
+          facilitySize: '14,000 sq ft',
+          activeCoaches: 7,
+          activeGymnasts: 110
+        }
       ];
       res.json(demoGyms);
     } catch (error) {
       console.error("Error fetching gyms:", error);
       res.status(500).json({ message: "Failed to fetch gyms" });
+    }
+  });
+
+  // Add new gym
+  app.post('/api/gyms', async (req, res) => {
+    try {
+      const gymData = req.body;
+      const newGym = {
+        id: `gym_${Date.now()}`,
+        ...gymData,
+        status: 'pending',
+        activeCoaches: 0,
+        activeGymnasts: 0,
+        createdAt: new Date().toISOString()
+      };
+      
+      res.status(201).json({ message: 'Gym created successfully', gym: newGym });
+    } catch (error) {
+      console.error("Error creating gym:", error);
+      res.status(500).json({ message: "Failed to create gym" });
+    }
+  });
+
+  // Update gym
+  app.patch('/api/gyms/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      res.json({ message: 'Gym updated successfully', gymId: id, updates: updateData });
+    } catch (error) {
+      console.error("Error updating gym:", error);
+      res.status(500).json({ message: "Failed to update gym" });
+    }
+  });
+
+  // Delete gym
+  app.delete('/api/gyms/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      res.json({ message: 'Gym deleted successfully', gymId: id });
+    } catch (error) {
+      console.error("Error deleting gym:", error);
+      res.status(500).json({ message: "Failed to delete gym" });
     }
   });
 

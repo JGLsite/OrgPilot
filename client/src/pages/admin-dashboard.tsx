@@ -1101,6 +1101,372 @@ export default function AdminDashboard() {
     );
   };
 
+  // Gym Management Content
+  const GymManagementContent = () => {
+    const [selectedGym, setSelectedGym] = useState<any>(null);
+    const [showAddGym, setShowAddGym] = useState(false);
+    const [newGymForm, setNewGymForm] = useState({
+      name: '',
+      address: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      phone: '',
+      email: '',
+      website: '',
+      establishedYear: '',
+      facilitySize: ''
+    });
+
+    const addGymMutation = useMutation({
+      mutationFn: async (gymData: any) => {
+        const response = await apiRequest('POST', '/api/gyms', gymData);
+        return response.json();
+      },
+      onSuccess: () => {
+        toast({ title: "Success", description: "Gym added successfully" });
+        setShowAddGym(false);
+        setNewGymForm({
+          name: '', address: '', city: '', state: '', zipCode: '',
+          phone: '', email: '', website: '', establishedYear: '', facilitySize: ''
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/gyms'] });
+      },
+    });
+
+    const updateGymMutation = useMutation({
+      mutationFn: async ({ id, data }: { id: string; data: any }) => {
+        const response = await apiRequest('PATCH', `/api/gyms/${id}`, data);
+        return response.json();
+      },
+      onSuccess: () => {
+        toast({ title: "Success", description: "Gym updated successfully" });
+        queryClient.invalidateQueries({ queryKey: ['/api/gyms'] });
+      },
+    });
+
+    const deleteGymMutation = useMutation({
+      mutationFn: async (id: string) => {
+        const response = await apiRequest('DELETE', `/api/gyms/${id}`);
+        return response.json();
+      },
+      onSuccess: () => {
+        toast({ title: "Success", description: "Gym deleted successfully" });
+        setSelectedGym(null);
+        queryClient.invalidateQueries({ queryKey: ['/api/gyms'] });
+      },
+    });
+
+    const handleApproveGym = (gymId: string) => {
+      updateGymMutation.mutate({ id: gymId, data: { status: 'approved' } });
+    };
+
+    const handleRejectGym = (gymId: string) => {
+      updateGymMutation.mutate({ id: gymId, data: { status: 'rejected' } });
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Gym Management</h2>
+            <p className="text-gray-600">Manage all gyms in the league</p>
+          </div>
+          <Button onClick={() => setShowAddGym(true)}>+ Add New Gym</Button>
+        </div>
+
+        {/* Gym Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">{gyms.length}</div>
+              <div className="text-sm text-gray-600">Total Gyms</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-green-600">
+                {gyms.filter((g: any) => g.status === 'approved').length}
+              </div>
+              <div className="text-sm text-gray-600">Approved</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-yellow-600">
+                {gyms.filter((g: any) => g.status === 'pending').length}
+              </div>
+              <div className="text-sm text-gray-600">Pending</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {gyms.reduce((total: number, g: any) => total + (g.activeGymnasts || 0), 0)}
+              </div>
+              <div className="text-sm text-gray-600">Total Gymnasts</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Gym List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>All Gyms</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {gyms.map((gym: any) => (
+                <div key={gym.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-1">
+                        <h3 className="font-semibold">{gym.name}</h3>
+                        <p className="text-sm text-gray-600">
+                          {gym.city}, {gym.state} • {gym.activeCoaches || 0} coaches • {gym.activeGymnasts || 0} gymnasts
+                        </p>
+                        <p className="text-xs text-gray-500">{gym.email}</p>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant={gym.status === 'approved' ? 'default' : gym.status === 'pending' ? 'secondary' : 'destructive'}>
+                          {gym.status}
+                        </Badge>
+                        <p className="text-xs text-gray-500 mt-1">Est. {gym.establishedYear}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setSelectedGym(gym)}
+                    >
+                      View Details
+                    </Button>
+                    {gym.status === 'pending' && (
+                      <>
+                        <Button 
+                          size="sm"
+                          onClick={() => handleApproveGym(gym.id)}
+                        >
+                          Approve
+                        </Button>
+                        <Button 
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleRejectGym(gym.id)}
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Add Gym Modal */}
+        {showAddGym && (
+          <Dialog open={showAddGym} onOpenChange={setShowAddGym}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Add New Gym</DialogTitle>
+                <DialogDescription>Enter the details for the new gym</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Gym Name *</Label>
+                    <Input 
+                      value={newGymForm.name}
+                      onChange={(e) => setNewGymForm({...newGymForm, name: e.target.value})}
+                      placeholder="Enter gym name"
+                    />
+                  </div>
+                  <div>
+                    <Label>Email *</Label>
+                    <Input 
+                      type="email"
+                      value={newGymForm.email}
+                      onChange={(e) => setNewGymForm({...newGymForm, email: e.target.value})}
+                      placeholder="contact@gym.com"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Address *</Label>
+                  <Input 
+                    value={newGymForm.address}
+                    onChange={(e) => setNewGymForm({...newGymForm, address: e.target.value})}
+                    placeholder="Street address"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label>City *</Label>
+                    <Input 
+                      value={newGymForm.city}
+                      onChange={(e) => setNewGymForm({...newGymForm, city: e.target.value})}
+                      placeholder="City"
+                    />
+                  </div>
+                  <div>
+                    <Label>State *</Label>
+                    <Input 
+                      value={newGymForm.state}
+                      onChange={(e) => setNewGymForm({...newGymForm, state: e.target.value})}
+                      placeholder="State"
+                    />
+                  </div>
+                  <div>
+                    <Label>Zip Code *</Label>
+                    <Input 
+                      value={newGymForm.zipCode}
+                      onChange={(e) => setNewGymForm({...newGymForm, zipCode: e.target.value})}
+                      placeholder="12345"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Phone</Label>
+                    <Input 
+                      value={newGymForm.phone}
+                      onChange={(e) => setNewGymForm({...newGymForm, phone: e.target.value})}
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                  <div>
+                    <Label>Website</Label>
+                    <Input 
+                      value={newGymForm.website}
+                      onChange={(e) => setNewGymForm({...newGymForm, website: e.target.value})}
+                      placeholder="www.gym.com"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Established Year</Label>
+                    <Input 
+                      value={newGymForm.establishedYear}
+                      onChange={(e) => setNewGymForm({...newGymForm, establishedYear: e.target.value})}
+                      placeholder="2020"
+                    />
+                  </div>
+                  <div>
+                    <Label>Facility Size</Label>
+                    <Input 
+                      value={newGymForm.facilitySize}
+                      onChange={(e) => setNewGymForm({...newGymForm, facilitySize: e.target.value})}
+                      placeholder="10,000 sq ft"
+                    />
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <Button 
+                    className="flex-1" 
+                    onClick={() => addGymMutation.mutate(newGymForm)}
+                    disabled={!newGymForm.name || !newGymForm.email || !newGymForm.address}
+                  >
+                    {addGymMutation.isPending ? 'Adding...' : 'Add Gym'}
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowAddGym(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Gym Detail Modal */}
+        {selectedGym && (
+          <Dialog open={!!selectedGym} onOpenChange={() => setSelectedGym(null)}>
+            <DialogContent className="max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>{selectedGym.name}</DialogTitle>
+                <DialogDescription>Gym details and management</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="font-semibold">Contact Information</Label>
+                      <div className="mt-2 space-y-2">
+                        <p><strong>Email:</strong> {selectedGym.email}</p>
+                        <p><strong>Phone:</strong> {selectedGym.phone}</p>
+                        <p><strong>Website:</strong> {selectedGym.website}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="font-semibold">Address</Label>
+                      <div className="mt-2">
+                        <p>{selectedGym.address}</p>
+                        <p>{selectedGym.city}, {selectedGym.state} {selectedGym.zipCode}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="font-semibold">Facility Information</Label>
+                      <div className="mt-2 space-y-2">
+                        <p><strong>Established:</strong> {selectedGym.establishedYear}</p>
+                        <p><strong>Facility Size:</strong> {selectedGym.facilitySize}</p>
+                        <p><strong>Status:</strong> 
+                          <Badge className="ml-2" variant={selectedGym.status === 'approved' ? 'default' : 'secondary'}>
+                            {selectedGym.status}
+                          </Badge>
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="font-semibold">Current Stats</Label>
+                      <div className="mt-2 space-y-2">
+                        <p><strong>Active Coaches:</strong> {selectedGym.activeCoaches}</p>
+                        <p><strong>Active Gymnasts:</strong> {selectedGym.activeGymnasts}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="flex justify-between items-center">
+                  <div className="space-x-2">
+                    {selectedGym.status === 'pending' && (
+                      <>
+                        <Button onClick={() => handleApproveGym(selectedGym.id)}>
+                          Approve Gym
+                        </Button>
+                        <Button variant="destructive" onClick={() => handleRejectGym(selectedGym.id)}>
+                          Reject Gym
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete this gym? This action cannot be undone.')) {
+                        deleteGymMutation.mutate(selectedGym.id);
+                      }
+                    }}
+                  >
+                    Delete Gym
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+    );
+  };
+
   // Content renderer
   const renderContent = () => {
     switch (selectedTab) {
@@ -1117,28 +1483,7 @@ export default function AdminDashboard() {
       case "settings":
         return <SettingsContent />;
       case "gyms":
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Gym Management</h2>
-            <div className="grid gap-4">
-              {gyms.map((gym) => (
-                <Card key={gym.id}>
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h3 className="font-bold">{gym.name}</h3>
-                        <p className="text-gray-600">{gym.city}, {gym.state}</p>
-                      </div>
-                      <Badge variant={gym.status === 'approved' ? 'default' : 'secondary'}>
-                        {gym.status}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        );
+        return <GymManagementContent />;
       case "members":
         return (
           <div className="space-y-6">
