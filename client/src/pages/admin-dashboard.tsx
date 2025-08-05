@@ -1114,15 +1114,7 @@ export default function AdminDashboard() {
       // Team/gym info
       teamName: '',
       city: '',
-      website: '',
-      
-      // Optional additional details
-      phone: '',
-      address: '',
-      state: '',
-      zipCode: '',
-      establishedYear: '',
-      facilitySize: ''
+      website: ''
     });
 
     const addGymMutation = useMutation({
@@ -1135,8 +1127,7 @@ export default function AdminDashboard() {
         setShowAddGym(false);
         setNewGymForm({
           adminFirstName: '', adminLastName: '', adminEmail: '',
-          teamName: '', city: '', website: '',
-          phone: '', address: '', state: '', zipCode: '', establishedYear: '', facilitySize: ''
+          teamName: '', city: '', website: ''
         });
         queryClient.invalidateQueries({ queryKey: ['/api/gyms'] });
       },
@@ -1347,63 +1338,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Optional Additional Details */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Additional Information (Optional)</h3>
-                  <div>
-                    <Label>Full Address</Label>
-                    <Input 
-                      value={newGymForm.address}
-                      onChange={(e) => setNewGymForm({...newGymForm, address: e.target.value})}
-                      placeholder="Street address"
-                    />
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label>State</Label>
-                      <Input 
-                        value={newGymForm.state}
-                        onChange={(e) => setNewGymForm({...newGymForm, state: e.target.value})}
-                        placeholder="State"
-                      />
-                    </div>
-                    <div>
-                      <Label>Zip Code</Label>
-                      <Input 
-                        value={newGymForm.zipCode}
-                        onChange={(e) => setNewGymForm({...newGymForm, zipCode: e.target.value})}
-                        placeholder="12345"
-                      />
-                    </div>
-                    <div>
-                      <Label>Phone</Label>
-                      <Input 
-                        value={newGymForm.phone}
-                        onChange={(e) => setNewGymForm({...newGymForm, phone: e.target.value})}
-                        placeholder="(555) 123-4567"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Established Year</Label>
-                      <Input 
-                        value={newGymForm.establishedYear}
-                        onChange={(e) => setNewGymForm({...newGymForm, establishedYear: e.target.value})}
-                        placeholder="2020"
-                      />
-                    </div>
-                    <div>
-                      <Label>Facility Size</Label>
-                      <Input 
-                        value={newGymForm.facilitySize}
-                        onChange={(e) => setNewGymForm({...newGymForm, facilitySize: e.target.value})}
-                        placeholder="10,000 sq ft"
-                      />
-                    </div>
-                  </div>
-                </div>
-
                 <div className="flex space-x-2">
                   <Button 
                     className="flex-1" 
@@ -1436,28 +1370,30 @@ export default function AdminDashboard() {
                       <Label className="font-semibold">Contact Information</Label>
                       <div className="mt-2 space-y-2">
                         <p><strong>Email:</strong> {selectedGym.email}</p>
-                        <p><strong>Phone:</strong> {selectedGym.phone}</p>
-                        <p><strong>Website:</strong> {selectedGym.website}</p>
+                        {selectedGym.website && <p><strong>Website:</strong> {selectedGym.website}</p>}
                       </div>
                     </div>
                     <div>
-                      <Label className="font-semibold">Address</Label>
+                      <Label className="font-semibold">Location</Label>
                       <div className="mt-2">
-                        <p>{selectedGym.address}</p>
-                        <p>{selectedGym.city}, {selectedGym.state} {selectedGym.zipCode}</p>
+                        <p><strong>City:</strong> {selectedGym.city}</p>
                       </div>
                     </div>
                   </div>
                   
                   <div className="space-y-4">
                     <div>
-                      <Label className="font-semibold">Facility Information</Label>
+                      <Label className="font-semibold">Team Information</Label>
                       <div className="mt-2 space-y-2">
-                        <p><strong>Established:</strong> {selectedGym.establishedYear}</p>
-                        <p><strong>Facility Size:</strong> {selectedGym.facilitySize}</p>
+                        <p><strong>Admin:</strong> {selectedGym.adminFirstName} {selectedGym.adminLastName}</p>
                         <p><strong>Status:</strong> 
-                          <Badge className="ml-2" variant={selectedGym.status === 'approved' ? 'default' : 'secondary'}>
-                            {selectedGym.status}
+                          <Badge className="ml-2" variant={selectedGym.approved ? 'default' : 'secondary'}>
+                            {selectedGym.approved ? 'Approved' : 'Pending'}
+                          </Badge>
+                        </p>
+                        <p><strong>Membership:</strong> 
+                          <Badge className="ml-2" variant={selectedGym.membershipPaid ? 'default' : 'destructive'}>
+                            {selectedGym.membershipPaid ? 'Paid' : 'Unpaid'}
                           </Badge>
                         </p>
                       </div>
