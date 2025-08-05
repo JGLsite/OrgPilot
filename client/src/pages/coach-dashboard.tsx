@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { apiRequest } from '@/lib/queryClient';
 import { isUnauthorizedError } from '@/lib/authUtils';
+import { RegistrationRequestsManager } from '@/components/RegistrationRequestsManager';
+import { RosterUploader } from '@/components/RosterUploader';
 
 export default function CoachDashboard() {
   const { toast } = useToast();
@@ -212,6 +214,8 @@ export default function CoachDashboard() {
         <Tabs defaultValue="gymnasts" className="space-y-6">
           <TabsList>
             <TabsTrigger value="gymnasts">Gymnasts</TabsTrigger>
+            <TabsTrigger value="registrations">Registration Requests</TabsTrigger>
+            <TabsTrigger value="roster">Roster Upload</TabsTrigger>
             <TabsTrigger value="challenges">Challenges</TabsTrigger>
             <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
@@ -299,6 +303,24 @@ export default function CoachDashboard() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="registrations">
+            {currentGym && (
+              <RegistrationRequestsManager 
+                gymId={currentGym.id} 
+                gymName={currentGym.name} 
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="roster">
+            {currentGym && (
+              <RosterUploader 
+                gymId={currentGym.id} 
+                gymName={currentGym.name} 
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="challenges">

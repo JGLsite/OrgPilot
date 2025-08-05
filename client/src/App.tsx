@@ -13,6 +13,7 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import AdminSetup from "@/pages/admin-setup";
 import DemoLogin from "@/pages/demo-login";
 import Checkout from "@/pages/checkout";
+import GymnastRegistration from "@/pages/gymnast-registration";
 
 function Router() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -23,6 +24,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/register" component={GymnastRegistration} />
       <Route path="/checkout" component={Checkout} />
       <Route path="/admin-setup" component={AdminSetup} />
       <Route path="/demo-login" component={DemoLogin} />

@@ -14,6 +14,9 @@ import {
   gymCoaches,
   gymEventEstimates,
   formConfigurations,
+  registrationRequests,
+  siblingRelationships,
+  rosterUploads,
   type User,
   type UpsertUser,
   type Gym,
@@ -28,6 +31,12 @@ import {
   type InsertReward,
   type FormConfiguration,
   type InsertFormConfiguration,
+  type RegistrationRequest,
+  type InsertRegistrationRequest,
+  type SiblingRelationship,
+  type InsertSiblingRelationship,
+  type RosterUpload,
+  type InsertRosterUpload,
   type Score,
   type EventSession,
   type EventRegistration,
@@ -106,6 +115,29 @@ export interface IStorage {
   updateFormConfiguration(id: string, updates: Partial<InsertFormConfiguration>): Promise<FormConfiguration>;
   deleteFormConfiguration(id: string): Promise<void>;
 
+  // Registration request operations
+  createRegistrationRequest(request: InsertRegistrationRequest): Promise<RegistrationRequest>;
+  getRegistrationRequestsByGym(gymId: string): Promise<RegistrationRequest[]>;
+  getPendingRegistrationRequests(): Promise<RegistrationRequest[]>;
+  getRegistrationRequest(id: string): Promise<RegistrationRequest | undefined>;
+  approveRegistrationRequest(id: string, reviewedBy: string): Promise<RegistrationRequest>;
+  rejectRegistrationRequest(id: string, reviewedBy: string): Promise<RegistrationRequest>;
+  deleteRegistrationRequest(id: string): Promise<void>;
+
+  // Sibling relationship operations
+  createSiblingRelationship(relationship: InsertSiblingRelationship): Promise<SiblingRelationship>;
+  getSiblingsByParentEmail(parentEmail: string): Promise<SiblingRelationship[]>;
+  deleteSiblingRelationship(id: string): Promise<void>;
+
+  // Roster upload operations
+  createRosterUpload(upload: InsertRosterUpload): Promise<RosterUpload>;
+  getRosterUploadsByGym(gymId: string): Promise<RosterUpload[]>;
+  getRosterUpload(id: string): Promise<RosterUpload | undefined>;
+  updateRosterUploadStatus(id: string, status: string, totalRows?: number, processedRows?: number, errorRows?: number, errors?: any[]): Promise<RosterUpload>;
+
+  // Gym settings operations
+  updateGymSelfRegistration(gymId: string, allowSelfRegistration: boolean): Promise<Gym>;
+
   // Other operations as needed
 }
 
@@ -144,9 +176,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserRole(userId: string, role: string): Promise<User> {
+    const validRoles = ['admin', 'gym_admin', 'coach', 'gymnast', 'spectator'] as const;
+    const roleValue = validRoles.includes(role as any) ? role as any : 'spectator';
+    
     const [user] = await db
       .update(users)
-      .set({ role: role as any, updatedAt: new Date() })
+      .set({ role: roleValue, updatedAt: new Date() })
       .where(eq(users.id, userId))
       .returning();
     return user;
@@ -270,18 +305,7 @@ export class DatabaseStorage implements IStorage {
     return gymnast;
   }
 
-  async getAllUsers(): Promise<User[]> {
-    return db.select().from(users).orderBy(asc(users.lastName));
-  }
 
-  async updateUserRole(userId: string, role: string): Promise<User> {
-    const [user] = await db
-      .update(users)
-      .set({ role })
-      .where(eq(users.id, userId))
-      .returning();
-    return user;
-  }
 
   async deleteUser(userId: string): Promise<void> {
     await db.delete(users).where(eq(users.id, userId));
@@ -553,7 +577,133 @@ export class DatabaseStorage implements IStorage {
       query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions));
     }
 
-    return query.orderBy(desc(gymnasts.points)).limit(50);
+    const results = await query.orderBy(desc(gymnasts.points)).limit(50);
+    return results;
+  }
+
+  // Registration request operations
+  async createRegistrationRequest(request: InsertRegistrationRequest): Promise<RegistrationRequest> {
+    const [newRequest] = await db.insert(registrationRequests).values(request).returning();
+    return newRequest;
+  }
+
+  async getRegistrationRequestsByGym(gymId: string): Promise<RegistrationRequest[]> {
+    return db.select().from(registrationRequests)
+      .where(eq(registrationRequests.gymId, gymId))
+      .orderBy(desc(registrationRequests.createdAt));
+  }
+
+  async getPendingRegistrationRequests(): Promise<RegistrationRequest[]> {
+    return db.select().from(registrationRequests)
+      .where(eq(registrationRequests.status, 'pending'))
+      .orderBy(desc(registrationRequests.createdAt));
+  }
+
+  async getRegistrationRequest(id: string): Promise<RegistrationRequest | undefined> {
+    const [request] = await db.select().from(registrationRequests).where(eq(registrationRequests.id, id));
+    return request;
+  }
+
+  async approveRegistrationRequest(id: string, reviewedBy: string): Promise<RegistrationRequest> {
+    const [request] = await db
+      .update(registrationRequests)
+      .set({ 
+        status: 'approved', 
+        reviewedBy, 
+        reviewedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(registrationRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  async rejectRegistrationRequest(id: string, reviewedBy: string): Promise<RegistrationRequest> {
+    const [request] = await db
+      .update(registrationRequests)
+      .set({ 
+        status: 'rejected', 
+        reviewedBy, 
+        reviewedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(registrationRequests.id, id))
+      .returning();
+    return request;
+  }
+
+  async deleteRegistrationRequest(id: string): Promise<void> {
+    await db.delete(registrationRequests).where(eq(registrationRequests.id, id));
+  }
+
+  // Sibling relationship operations
+  async createSiblingRelationship(relationship: InsertSiblingRelationship): Promise<SiblingRelationship> {
+    const [newRelationship] = await db.insert(siblingRelationships).values(relationship).returning();
+    return newRelationship;
+  }
+
+  async getSiblingsByParentEmail(parentEmail: string): Promise<SiblingRelationship[]> {
+    return db.select().from(siblingRelationships)
+      .where(eq(siblingRelationships.parentEmail, parentEmail))
+      .orderBy(asc(siblingRelationships.createdAt));
+  }
+
+  async deleteSiblingRelationship(id: string): Promise<void> {
+    await db.delete(siblingRelationships).where(eq(siblingRelationships.id, id));
+  }
+
+  // Roster upload operations
+  async createRosterUpload(upload: InsertRosterUpload): Promise<RosterUpload> {
+    const [newUpload] = await db.insert(rosterUploads).values(upload).returning();
+    return newUpload;
+  }
+
+  async getRosterUploadsByGym(gymId: string): Promise<RosterUpload[]> {
+    return db.select().from(rosterUploads)
+      .where(eq(rosterUploads.gymId, gymId))
+      .orderBy(desc(rosterUploads.createdAt));
+  }
+
+  async getRosterUpload(id: string): Promise<RosterUpload | undefined> {
+    const [upload] = await db.select().from(rosterUploads).where(eq(rosterUploads.id, id));
+    return upload;
+  }
+
+  async updateRosterUploadStatus(
+    id: string, 
+    status: string, 
+    totalRows?: number, 
+    processedRows?: number, 
+    errorRows?: number, 
+    errors?: any[]
+  ): Promise<RosterUpload> {
+    const updateData: any = { 
+      status, 
+      updatedAt: new Date() 
+    };
+    
+    if (totalRows !== undefined) updateData.totalRows = totalRows;
+    if (processedRows !== undefined) updateData.processedRows = processedRows;
+    if (errorRows !== undefined) updateData.errorRows = errorRows;
+    if (errors !== undefined) updateData.errors = errors;
+    if (status === 'completed' || status === 'failed') updateData.completedAt = new Date();
+
+    const [upload] = await db
+      .update(rosterUploads)
+      .set(updateData)
+      .where(eq(rosterUploads.id, id))
+      .returning();
+    return upload;
+  }
+
+  // Gym settings operations
+  async updateGymSelfRegistration(gymId: string, allowSelfRegistration: boolean): Promise<Gym> {
+    const [gym] = await db
+      .update(gyms)
+      .set({ allowSelfRegistration, updatedAt: new Date() })
+      .where(eq(gyms.id, gymId))
+      .returning();
+    return gym;
   }
 }
 

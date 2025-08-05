@@ -227,6 +227,55 @@ export const gymEventEstimates = pgTable("gym_event_estimates", {
   submittedAt: timestamp("submitted_at").defaultNow(),
 });
 
+// Registration requests table - for self-registration pending coach approval
+export const registrationRequests = pgTable("registration_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gymId: varchar("gym_id").references(() => gyms.id),
+  firstName: varchar("first_name").notNull(),
+  lastName: varchar("last_name").notNull(),
+  email: varchar("email"),
+  birthDate: date("birth_date").notNull(),
+  level: gymnastLevelEnum("level").notNull(),
+  type: gymnastTypeEnum("type").default("team"),
+  parentFirstName: varchar("parent_first_name"),
+  parentLastName: varchar("parent_last_name"),
+  parentEmail: varchar("parent_email"),
+  parentPhone: varchar("parent_phone"),
+  emergencyContact: varchar("emergency_contact"),
+  emergencyPhone: varchar("emergency_phone"),
+  medicalInfo: text("medical_info"),
+  status: varchar("status").default("pending"), // pending, approved, rejected
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Sibling relationships table - for parent portals managing multiple children
+export const siblingRelationships = pgTable("sibling_relationships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  parentEmail: varchar("parent_email").notNull(),
+  gymnastId: varchar("gymnast_id").references(() => gymnasts.id),
+  relationshipType: varchar("relationship_type").default("parent"), // parent, guardian
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Roster uploads table - track uploaded spreadsheets
+export const rosterUploads = pgTable("roster_uploads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gymId: varchar("gym_id").references(() => gyms.id),
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  fileName: varchar("file_name").notNull(),
+  filePath: varchar("file_path").notNull(),
+  totalRows: integer("total_rows").default(0),
+  processedRows: integer("processed_rows").default(0),
+  errorRows: integer("error_rows").default(0),
+  status: varchar("status").default("processing"), // processing, completed, failed
+  errors: jsonb("errors"), // JSON array of error messages
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
@@ -275,6 +324,31 @@ export const insertFormConfigurationSchema = createInsertSchema(formConfiguratio
   updatedAt: true,
 });
 
+export const insertRegistrationRequestSchema = createInsertSchema(registrationRequests).omit({
+  id: true,
+  status: true,
+  reviewedBy: true,
+  reviewedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSiblingRelationshipSchema = createInsertSchema(siblingRelationships).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRosterUploadSchema = createInsertSchema(rosterUploads).omit({
+  id: true,
+  totalRows: true,
+  processedRows: true,
+  errorRows: true,
+  status: true,
+  errors: true,
+  createdAt: true,
+  completedAt: true,
+});
+
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -290,6 +364,12 @@ export type InsertReward = z.infer<typeof insertRewardSchema>;
 export type Reward = typeof rewards.$inferSelect;
 export type InsertFormConfiguration = z.infer<typeof insertFormConfigurationSchema>;
 export type FormConfiguration = typeof formConfigurations.$inferSelect;
+export type InsertRegistrationRequest = z.infer<typeof insertRegistrationRequestSchema>;
+export type RegistrationRequest = typeof registrationRequests.$inferSelect;
+export type InsertSiblingRelationship = z.infer<typeof insertSiblingRelationshipSchema>;
+export type SiblingRelationship = typeof siblingRelationships.$inferSelect;
+export type InsertRosterUpload = z.infer<typeof insertRosterUploadSchema>;
+export type RosterUpload = typeof rosterUploads.$inferSelect;
 export type Score = typeof scores.$inferSelect;
 export type EventSession = typeof eventSessions.$inferSelect;
 export type EventRegistration = typeof eventRegistrations.$inferSelect;

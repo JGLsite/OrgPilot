@@ -19,10 +19,10 @@ export default function Hero() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Button 
-                onClick={() => document.getElementById('join')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => window.location.href = '/register'}
                 className="bg-jgl-magenta hover:bg-pink-600 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
               >
-                <i className="fas fa-user-plus mr-2"></i>Join the League
+                <i className="fas fa-user-plus mr-2"></i>Register as Gymnast
               </Button>
               <Button 
                 onClick={() => document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' })}

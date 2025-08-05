@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import Stripe from "stripe";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertGymSchema, insertGymnastSchema, insertEventSchema, insertChallengeSchema, insertRewardSchema, insertFormConfigurationSchema } from "@shared/schema";
+import { insertGymSchema, insertGymnastSchema, insertEventSchema, insertChallengeSchema, insertRewardSchema, insertFormConfigurationSchema, insertRegistrationRequestSchema, insertRosterUploadSchema } from "@shared/schema";
+import { sendEmail, emailTemplates } from "./emailService";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -1085,6 +1086,430 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error processing contact form:", error);
       res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  // ===== GYMNAST REGISTRATION WORKFLOW ROUTES =====
+
+  // Public self-registration route
+  app.post('/api/registration-requests', async (req, res) => {
+    try {
+      const validatedData = insertRegistrationRequestSchema.parse(req.body);
+      
+      // Check if the gym allows self-registration
+      const gym = await storage.getGym(validatedData.gymId);
+      if (!gym || !gym.allowSelfRegistration) {
+        return res.status(403).json({ 
+          message: "Self-registration is not allowed for this gym" 
+        });
+      }
+
+      const request = await storage.createRegistrationRequest(validatedData);
+      
+      // Send notification email to coaches of this gym
+      try {
+        const coaches = await storage.getCoachesByGym(validatedData.gymId);
+        const emailTemplate = emailTemplates.coachNotification(request, gym.name);
+        
+        for (const coach of coaches) {
+          if (coach.email) {
+            await sendEmail({
+              to: coach.email,
+              subject: emailTemplate.subject,
+              html: emailTemplate.html,
+              text: emailTemplate.text
+            });
+          }
+        }
+      } catch (emailError) {
+        console.error('Failed to send coach notification:', emailError);
+      }
+
+      res.status(201).json(request);
+    } catch (error) {
+      console.error("Error creating registration request:", error);
+      if ((error as any).name === 'ZodError') {
+        return res.status(400).json({ 
+          message: 'Invalid registration data', 
+          details: (error as any).errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to submit registration request" });
+    }
+  });
+
+  // Get registration requests for a gym (coaches and gym admins)
+  app.get('/api/registration-requests/gym/:gymId', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Check if user is a coach or admin for this gym
+      const userGyms = await storage.getGymsByUser(user.id);
+      const hasAccess = userGyms.some(gym => gym.id === req.params.gymId) || user.role === 'admin';
+      
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const requests = await storage.getRegistrationRequestsByGym(req.params.gymId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching registration requests:", error);
+      res.status(500).json({ message: "Failed to fetch registration requests" });
+    }
+  });
+
+  // Approve registration request
+  app.post('/api/registration-requests/:id/approve', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const request = await storage.getRegistrationRequest(req.params.id);
+      if (!request) {
+        return res.status(404).json({ message: "Registration request not found" });
+      }
+
+      // Check if user has permission to approve
+      const userGyms = await storage.getGymsByUser(user.id);
+      const hasAccess = userGyms.some(gym => gym.id === request.gymId) || user.role === 'admin';
+      
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Approve the request
+      const approvedRequest = await storage.approveRegistrationRequest(req.params.id, user.id);
+      
+      // Create gymnast account
+      const newGymnast = await storage.createGymnast({
+        gymId: request.gymId,
+        firstName: request.firstName,
+        lastName: request.lastName,
+        email: request.email,
+        birthDate: request.birthDate,
+        level: request.level,
+        type: request.type,
+        parentFirstName: request.parentFirstName,
+        parentLastName: request.parentLastName,
+        parentEmail: request.parentEmail,
+        parentPhone: request.parentPhone,
+        emergencyContact: request.emergencyContact,
+        emergencyPhone: request.emergencyPhone,
+        medicalInfo: request.medicalInfo,
+        approved: true
+      });
+
+      // Send approval email
+      try {
+        const emailTemplate = emailTemplates.registrationApproved(request, 'https://your-app-url.com/login');
+        const emailAddress = request.email || request.parentEmail;
+        
+        if (emailAddress) {
+          await sendEmail({
+            to: emailAddress,
+            subject: emailTemplate.subject,
+            html: emailTemplate.html,
+            text: emailTemplate.text
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send approval email:', emailError);
+      }
+
+      res.json({ 
+        request: approvedRequest, 
+        gymnast: newGymnast,
+        message: "Registration approved and gymnast account created" 
+      });
+    } catch (error) {
+      console.error("Error approving registration request:", error);
+      res.status(500).json({ message: "Failed to approve registration request" });
+    }
+  });
+
+  // Reject registration request
+  app.post('/api/registration-requests/:id/reject', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const request = await storage.getRegistrationRequest(req.params.id);
+      if (!request) {
+        return res.status(404).json({ message: "Registration request not found" });
+      }
+
+      // Check permission
+      const userGyms = await storage.getGymsByUser(user.id);
+      const hasAccess = userGyms.some(gym => gym.id === request.gymId) || user.role === 'admin';
+      
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const rejectedRequest = await storage.rejectRegistrationRequest(req.params.id, user.id);
+      
+      // Send rejection email
+      try {
+        const emailTemplate = emailTemplates.registrationRejected(request, req.body.reason);
+        const emailAddress = request.email || request.parentEmail;
+        
+        if (emailAddress) {
+          await sendEmail({
+            to: emailAddress,
+            subject: emailTemplate.subject,
+            html: emailTemplate.html,
+            text: emailTemplate.text
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send rejection email:', emailError);
+      }
+
+      res.json({ 
+        request: rejectedRequest,
+        message: "Registration rejected and notification sent" 
+      });
+    } catch (error) {
+      console.error("Error rejecting registration request:", error);
+      res.status(500).json({ message: "Failed to reject registration request" });
+    }
+  });
+
+  // Roster upload routes
+  app.post('/api/roster-upload', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const validatedData = insertRosterUploadSchema.parse(req.body);
+      
+      // Check if user has access to this gym
+      const userGyms = await storage.getGymsByUser(user.id);
+      const hasAccess = userGyms.some(gym => gym.id === validatedData.gymId) || user.role === 'admin';
+      
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const upload = await storage.createRosterUpload({
+        ...validatedData,
+        uploadedBy: user.id
+      });
+
+      res.status(201).json(upload);
+    } catch (error) {
+      console.error("Error creating roster upload:", error);
+      if ((error as any).name === 'ZodError') {
+        return res.status(400).json({ 
+          message: 'Invalid upload data', 
+          details: (error as any).errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create roster upload" });
+    }
+  });
+
+  // Process roster upload (bulk create gymnasts)
+  app.post('/api/roster-upload/:id/process', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const upload = await storage.getRosterUpload(req.params.id);
+      if (!upload) {
+        return res.status(404).json({ message: "Upload not found" });
+      }
+
+      // Check permission
+      const userGyms = await storage.getGymsByUser(user.id);
+      const hasAccess = userGyms.some(gym => gym.id === upload.gymId) || user.role === 'admin';
+      
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { gymnastsData } = req.body;
+      const totalRows = gymnastsData.length;
+      let processedRows = 0;
+      let errorRows = 0;
+      const errors: any[] = [];
+      const createdGymnasts: any[] = [];
+
+      // Update upload status to processing
+      await storage.updateRosterUploadStatus(req.params.id, 'processing', totalRows);
+
+      // Process each gymnast
+      for (let i = 0; i < gymnastsData.length; i++) {
+        try {
+          const gymnastData = {
+            ...gymnastsData[i],
+            gymId: upload.gymId,
+            approved: true // Roster uploads are auto-approved
+          };
+
+          const validatedGymnast = insertGymnastSchema.parse(gymnastData);
+          const newGymnast = await storage.createGymnast(validatedGymnast);
+          createdGymnasts.push(newGymnast);
+          processedRows++;
+
+          // Send welcome email
+          try {
+            const emailTemplate = emailTemplates.gymnastWelcome(newGymnast, 'https://your-app-url.com/login');
+            const emailAddress = newGymnast.email || newGymnast.parentEmail;
+            
+            if (emailAddress) {
+              await sendEmail({
+                to: emailAddress,
+                subject: emailTemplate.subject,
+                html: emailTemplate.html,
+                text: emailTemplate.text
+              });
+            }
+          } catch (emailError) {
+            console.error('Failed to send welcome email:', emailError);
+          }
+
+        } catch (error) {
+          errorRows++;
+          errors.push({
+            row: i + 1,
+            data: gymnastsData[i],
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      // Update final status
+      const finalStatus = errorRows === 0 ? 'completed' : 'completed';
+      await storage.updateRosterUploadStatus(
+        req.params.id, 
+        finalStatus, 
+        totalRows, 
+        processedRows, 
+        errorRows, 
+        errors
+      );
+
+      // Send completion email to uploader
+      try {
+        const emailTemplate = emailTemplates.rosterUploadComplete(upload, processedRows, errorRows);
+        if (user.email) {
+          await sendEmail({
+            to: user.email,
+            subject: emailTemplate.subject,
+            html: emailTemplate.html,
+            text: emailTemplate.text
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send completion email:', emailError);
+      }
+
+      res.json({
+        message: "Roster processing completed",
+        totalRows,
+        processedRows,
+        errorRows,
+        errors: errors.slice(0, 10), // Limit error details in response
+        createdGymnasts: createdGymnasts.length
+      });
+
+    } catch (error) {
+      console.error("Error processing roster upload:", error);
+      
+      // Update upload status to failed
+      try {
+        await storage.updateRosterUploadStatus(req.params.id, 'failed', 0, 0, 1, [
+          { error: error instanceof Error ? error.message : 'Processing failed' }
+        ]);
+      } catch (updateError) {
+        console.error("Failed to update upload status:", updateError);
+      }
+      
+      res.status(500).json({ message: "Failed to process roster upload" });
+    }
+  });
+
+  // Get roster uploads for a gym
+  app.get('/api/roster-uploads/gym/:gymId', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Check permission
+      const userGyms = await storage.getGymsByUser(user.id);
+      const hasAccess = userGyms.some(gym => gym.id === req.params.gymId) || user.role === 'admin';
+      
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const uploads = await storage.getRosterUploadsByGym(req.params.gymId);
+      res.json(uploads);
+    } catch (error) {
+      console.error("Error fetching roster uploads:", error);
+      res.status(500).json({ message: "Failed to fetch roster uploads" });
+    }
+  });
+
+  // Gym settings - toggle self-registration
+  app.patch('/api/gyms/:id/self-registration', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Check if user is admin or gym admin for this gym
+      const userGyms = await storage.getGymsByUser(user.id);
+      const hasAccess = userGyms.some(gym => gym.id === req.params.id) || user.role === 'admin';
+      
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const { allowSelfRegistration } = req.body;
+      const updatedGym = await storage.updateGymSelfRegistration(req.params.id, allowSelfRegistration);
+      
+      res.json(updatedGym);
+    } catch (error) {
+      console.error("Error updating gym self-registration setting:", error);
+      res.status(500).json({ message: "Failed to update gym settings" });
+    }
+  });
+
+  // Sibling relationships for parent portals
+  app.get('/api/siblings/:parentEmail', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Check if user is the parent or an admin
+      if (user.email !== req.params.parentEmail && user.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const siblings = await storage.getSiblingsByParentEmail(req.params.parentEmail);
+      res.json(siblings);
+    } catch (error) {
+      console.error("Error fetching sibling relationships:", error);
+      res.status(500).json({ message: "Failed to fetch sibling relationships" });
     }
   });
 
