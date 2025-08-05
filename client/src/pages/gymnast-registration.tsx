@@ -63,7 +63,7 @@ export default function GymnastRegistration() {
   const registrationMutation = useMutation({
     mutationFn: async (data: RegistrationFormData) => {
       const { confirmParentEmail, ...registrationData } = data;
-      return apiRequest("/api/registration-requests", "POST", registrationData);
+      return apiRequest("POST", "/api/registration-requests", registrationData);
     },
     onSuccess: () => {
       setIsSubmitted(true);
