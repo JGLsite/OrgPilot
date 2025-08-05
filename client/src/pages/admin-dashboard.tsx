@@ -20,6 +20,16 @@ export default function AdminDashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState("dashboard");
+  
+  // State for member management
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [editingMember, setEditingMember] = useState<any>(null);
+  const [memberForm, setMemberForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    role: 'gymnast'
+  });
 
   // Stats queries with proper typing
   const { data: gyms = [], isLoading: gymsLoading } = useQuery<any[]>({
@@ -1596,6 +1606,46 @@ export default function AdminDashboard() {
     );
   }
 
+  // Member management mutations
+  const createMemberMutation = useMutation({
+    mutationFn: async (memberData: any) => {
+      return apiRequest('POST', '/api/users', memberData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({ title: "Member created successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to create member", variant: "destructive" });
+    }
+  });
+
+  const updateMemberMutation = useMutation({
+    mutationFn: async ({ id, role }: { id: string; role: string }) => {
+      return apiRequest('PATCH', `/api/users/${id}/role`, { role });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({ title: "Member role updated successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to update member role", variant: "destructive" });
+    }
+  });
+
+  const deleteMemberMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/users/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({ title: "Member deleted successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to delete member", variant: "destructive" });
+    }
+  });
+
   // Additional content components
   const MembersContent = () => (
     <div className="space-y-6">
@@ -1604,7 +1654,16 @@ export default function AdminDashboard() {
           <h2 className="text-2xl font-bold text-gray-900">Member Management</h2>
           <p className="text-gray-600">Manage all platform users and their roles</p>
         </div>
-        <Button onClick={() => {}}>+ Add Member</Button>
+        <Button onClick={() => {
+          const firstName = prompt('First Name:');
+          const lastName = prompt('Last Name:');
+          const email = prompt('Email:');
+          const role = prompt('Role (admin, coach, gym_admin, gymnast, spectator):') || 'gymnast';
+          
+          if (firstName && lastName && email && ['admin', 'coach', 'gym_admin', 'gymnast', 'spectator'].includes(role)) {
+            createMemberMutation.mutate({ firstName, lastName, email, role });
+          }
+        }}>+ Add Member</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1663,7 +1722,29 @@ export default function AdminDashboard() {
                   <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
                     {user.role}
                   </Badge>
-                  <Button size="sm" variant="outline">Edit Role</Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      const newRole = prompt('Enter new role (admin, coach, gym_admin, gymnast, spectator):');
+                      if (newRole && ['admin', 'coach', 'gym_admin', 'gymnast', 'spectator'].includes(newRole)) {
+                        updateMemberMutation.mutate({ id: user.id, role: newRole });
+                      }
+                    }}
+                  >
+                    Edit Role
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete this member?')) {
+                        deleteMemberMutation.mutate(user.id);
+                      }
+                    }}
+                  >
+                    Delete
+                  </Button>
                 </div>
               </div>
             ))}
