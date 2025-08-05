@@ -10,6 +10,7 @@ import GymDashboard from "@/pages/gym-dashboard";
 import CoachDashboard from "@/pages/coach-dashboard";
 import GymnastDashboard from "@/pages/gymnast-dashboard";
 import AdminDashboard from "@/pages/admin-dashboard";
+import AdminSetup from "@/pages/admin-setup";
 import Checkout from "@/pages/checkout";
 
 function Router() {
@@ -22,10 +23,11 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/checkout" component={Checkout} />
+      <Route path="/admin-setup" component={AdminSetup} />
       
       {isAuthenticated && user && (
         <>
-          {user.role === 'admin' && <Route path="/admin" component={AdminDashboard} />}
+          {user.role === 'admin' && <Route path="/admin-dashboard" component={AdminDashboard} />}
           {user.role === 'gym_admin' && <Route path="/gym-dashboard" component={GymDashboard} />}
           {user.role === 'coach' && <Route path="/coach-dashboard" component={CoachDashboard} />}
           {user.role === 'gymnast' && <Route path="/gymnast-dashboard" component={GymnastDashboard} />}

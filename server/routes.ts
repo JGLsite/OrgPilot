@@ -21,10 +21,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      res.json(user);
+      if (!user) {
+        // Create user if doesn't exist
+        const newUser = await storage.upsertUser({
+          id: userId,
+          email: req.user.claims.email,
+          firstName: req.user.claims.first_name,
+          lastName: req.user.claims.last_name,
+          profileImageUrl: req.user.claims.profile_image_url,
+          role: 'spectator', // Default role
+        });
+        res.json(newUser);
+      } else {
+        res.json(user);
+      }
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Admin role assignment endpoint (for testing)
+  app.post('/api/admin/assign-role', isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId, role } = req.body;
+      const currentUser = await storage.getUser(req.user.claims.sub);
+      
+      // Only existing admins can assign roles
+      if (currentUser?.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can assign roles" });
+      }
+      
+      const updatedUser = await storage.updateUserRole(userId, role);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error assigning role:", error);
+      res.status(500).json({ message: "Failed to assign role" });
+    }
+  });
+
+  // Bootstrap first admin (one-time setup)
+  app.post('/api/bootstrap-admin', async (req, res) => {
+    try {
+      const { secret } = req.body;
+      if (secret !== 'jgl-admin-bootstrap-2024') {
+        return res.status(403).json({ message: "Invalid bootstrap secret" });
+      }
+      
+      // Find first user and make them admin
+      const users = await storage.getAllUsers();
+      if (users.length === 0) {
+        return res.status(400).json({ message: "No users found. Please log in first." });
+      }
+      
+      const firstUser = users[0];
+      if (firstUser.role === 'admin') {
+        return res.json({ message: "Admin already exists", user: firstUser });
+      }
+      
+      const adminUser = await storage.updateUserRole(firstUser.id, 'admin');
+      res.json({ message: "Admin role assigned", user: adminUser });
+    } catch (error) {
+      console.error("Error bootstrapping admin:", error);
+      res.status(500).json({ message: "Failed to bootstrap admin" });
     }
   });
 
