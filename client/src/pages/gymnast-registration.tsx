@@ -58,7 +58,7 @@ export default function GymnastRegistration() {
     queryKey: ["/api/gyms"],
   });
 
-  const availableGyms = gyms.filter((gym: any) => gym.allowSelfRegistration);
+  const availableGyms = gyms.filter((gym: any) => gym.approved && gym.allowSelfRegistration);
 
   const registrationMutation = useMutation({
     mutationFn: async (data: RegistrationFormData) => {

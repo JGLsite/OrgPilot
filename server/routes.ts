@@ -428,10 +428,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Gym registration
-  app.post('/api/gyms', async (req, res) => {
+  app.post('/api/gyms', isAuthenticated, async (req: any, res) => {
     try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can create gyms" });
+      }
+
       const gymData = insertGymSchema.parse(req.body);
-      const gym = await storage.createGym(gymData);
+      // When admin creates a gym, it's automatically approved
+      const gymWithApproval = { ...gymData, approved: true };
+      const gym = await storage.createGym(gymWithApproval);
       res.status(201).json(gym);
     } catch (error) {
       console.error("Error creating gym:", error);
@@ -471,6 +478,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating gym:", error);
       res.status(500).json({ message: "Failed to update gym" });
+    }
+  });
+
+  // Admin endpoint to approve gyms
+  app.patch('/api/gyms/:id/approve', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can approve gyms" });
+      }
+
+      const approvedGym = await storage.updateGymApproval(req.params.id, true);
+      res.json({ message: 'Gym approved successfully', gym: approvedGym });
+    } catch (error) {
+      console.error("Error approving gym:", error);
+      res.status(500).json({ message: "Failed to approve gym" });
     }
   });
 
