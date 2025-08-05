@@ -277,6 +277,14 @@ export class DatabaseStorage implements IStorage {
     await db.delete(users).where(eq(users.id, userId));
   }
 
+  async deleteEvent(eventId: string): Promise<void> {
+    await db.delete(events).where(eq(events.id, eventId));
+  }
+
+  async deleteGymnast(gymnastId: string): Promise<void> {
+    await db.delete(gymnasts).where(eq(gymnasts.id, gymnastId));
+  }
+
   // Event operations
   async createEvent(event: InsertEvent): Promise<Event> {
     const [newEvent] = await db.insert(events).values(event).returning();

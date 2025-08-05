@@ -940,6 +940,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Event management routes
+  app.delete('/api/events/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteEvent(req.params.id);
+      res.json({ message: "Event deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      res.status(400).json({ message: "Failed to delete event" });
+    }
+  });
+
+  // Gymnast management routes
+  app.delete('/api/gymnasts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteGymnast(req.params.id);
+      res.json({ message: "Gymnast deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting gymnast:", error);
+      res.status(400).json({ message: "Failed to delete gymnast" });
+    }
+  });
+
   // Stripe payment route for gym membership
   app.post("/api/create-payment-intent", async (req, res) => {
     try {

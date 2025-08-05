@@ -104,6 +104,46 @@ export default function AdminDashboard() {
     }
   });
 
+  // Member management mutations
+  const createMemberMutation = useMutation({
+    mutationFn: async (memberData: any) => {
+      return apiRequest('POST', '/api/users', memberData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({ title: "Member created successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to create member", variant: "destructive" });
+    }
+  });
+
+  const updateMemberMutation = useMutation({
+    mutationFn: async ({ id, role }: { id: string; role: string }) => {
+      return apiRequest('PATCH', `/api/users/${id}/role`, { role });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({ title: "Member role updated successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to update member role", variant: "destructive" });
+    }
+  });
+
+  const deleteMemberMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/users/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({ title: "Member deleted successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to delete member", variant: "destructive" });
+    }
+  });
+
   const createEventMutation = useMutation({
     mutationFn: async (eventData: any) => {
       return apiRequest('POST', '/api/events', eventData);
@@ -114,6 +154,45 @@ export default function AdminDashboard() {
     },
     onError: (error) => {
       toast({ title: "Error", description: "Failed to create event", variant: "destructive" });
+    }
+  });
+
+  const deleteEventMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/events/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/events'] });
+      toast({ title: "Event deleted successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to delete event", variant: "destructive" });
+    }
+  });
+
+  const createGymnastMutation = useMutation({
+    mutationFn: async (gymnastData: any) => {
+      return apiRequest('POST', '/api/gymnasts', gymnastData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/gymnasts'] });
+      toast({ title: "Gymnast created successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to create gymnast", variant: "destructive" });
+    }
+  });
+
+  const deleteGymnastMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/gymnasts/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/gymnasts'] });
+      toast({ title: "Gymnast deleted successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to delete gymnast", variant: "destructive" });
     }
   });
 
@@ -703,7 +782,24 @@ export default function AdminDashboard() {
             <h2 className="text-2xl font-bold text-gray-900">Gymnast Management</h2>
             <p className="text-gray-600">Manage all gymnasts across the league</p>
           </div>
-          <Button onClick={() => setSelectedGymnast({})}>+ Add New Gymnast</Button>
+          <Button onClick={() => {
+            const firstName = prompt('First Name:');
+            const lastName = prompt('Last Name:');
+            const email = prompt('Email:');
+            const level = prompt('Level (1-10):');
+            const birthDate = prompt('Birth Date (YYYY-MM-DD):');
+            
+            if (firstName && lastName && email && level && birthDate) {
+              createGymnastMutation.mutate({ 
+                firstName, 
+                lastName, 
+                email, 
+                level: parseInt(level), 
+                birthDate,
+                status: 'pending'
+              });
+            }
+          }}>+ Add New Gymnast</Button>
         </div>
 
         {/* Gymnast Stats */}
@@ -782,6 +878,17 @@ export default function AdminDashboard() {
                         Approve
                       </Button>
                     )}
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this gymnast?')) {
+                          deleteGymnastMutation.mutate(gymnast.id);
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -1606,45 +1713,7 @@ export default function AdminDashboard() {
     );
   }
 
-  // Member management mutations
-  const createMemberMutation = useMutation({
-    mutationFn: async (memberData: any) => {
-      return apiRequest('POST', '/api/users', memberData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      toast({ title: "Member created successfully" });
-    },
-    onError: (error) => {
-      toast({ title: "Error", description: "Failed to create member", variant: "destructive" });
-    }
-  });
 
-  const updateMemberMutation = useMutation({
-    mutationFn: async ({ id, role }: { id: string; role: string }) => {
-      return apiRequest('PATCH', `/api/users/${id}/role`, { role });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      toast({ title: "Member role updated successfully" });
-    },
-    onError: (error) => {
-      toast({ title: "Error", description: "Failed to update member role", variant: "destructive" });
-    }
-  });
-
-  const deleteMemberMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest('DELETE', `/api/users/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      toast({ title: "Member deleted successfully" });
-    },
-    onError: (error) => {
-      toast({ title: "Error", description: "Failed to delete member", variant: "destructive" });
-    }
-  });
 
   // Additional content components
   const MembersContent = () => (
@@ -2068,7 +2137,22 @@ export default function AdminDashboard() {
           <h2 className="text-2xl font-bold text-gray-900">Event Management</h2>
           <p className="text-gray-600">Create and manage gymnastics competitions</p>
         </div>
-        <Button onClick={() => {}}>+ Create Event</Button>
+        <Button onClick={() => {
+          const name = prompt('Event Name:');
+          const date = prompt('Event Date (YYYY-MM-DD):');
+          const location = prompt('Location:');
+          const description = prompt('Description:');
+          
+          if (name && date && location) {
+            createEventMutation.mutate({ 
+              name, 
+              date, 
+              location, 
+              description: description || '', 
+              registrationOpen: true 
+            });
+          }
+        }}>+ Create Event</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -2109,7 +2193,25 @@ export default function AdminDashboard() {
             {events.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-600">No events created yet.</p>
-                <Button className="mt-4">Create First Event</Button>
+                <Button 
+                  className="mt-4"
+                  onClick={() => {
+                    const name = prompt('Event Name:');
+                    const date = prompt('Event Date (YYYY-MM-DD):');
+                    const location = prompt('Location:');
+                    const description = prompt('Description:');
+                    
+                    if (name && date && location) {
+                      createEventMutation.mutate({ 
+                        name, 
+                        date, 
+                        location, 
+                        description: description || '', 
+                        registrationOpen: true 
+                      });
+                    }
+                  }}
+                >Create First Event</Button>
               </div>
             ) : (
               events.map((event) => (
@@ -2134,6 +2236,17 @@ export default function AdminDashboard() {
                       {!event.approved && (
                         <Button size="sm">Approve</Button>
                       )}
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this event?')) {
+                            deleteEventMutation.mutate(event.id);
+                          }
+                        }}
+                      >
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 </div>
