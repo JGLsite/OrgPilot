@@ -42,6 +42,7 @@ export interface IStorage {
   createGym(gym: InsertGym): Promise<Gym>;
   getGym(id: string): Promise<Gym | undefined>;
   getGyms(): Promise<Gym[]>;
+  deleteGym(id: string): Promise<void>;
   updateGymApproval(id: string, approved: boolean): Promise<Gym>;
   updateGymPayment(id: string, paid: boolean): Promise<Gym>;
   
@@ -149,6 +150,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(gyms.id, id))
       .returning();
     return gym;
+  }
+
+  async deleteGym(id: string): Promise<void> {
+    await db.delete(gyms).where(eq(gyms.id, id));
   }
 
   // Gymnast operations

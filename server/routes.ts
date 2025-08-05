@@ -441,7 +441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/gyms/:id', async (req, res) => {
     try {
       const { id } = req.params;
-      
+      await storage.deleteGym(id);
       res.json({ message: 'Gym deleted successfully', gymId: id });
     } catch (error) {
       console.error("Error deleting gym:", error);
