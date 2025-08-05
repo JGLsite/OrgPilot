@@ -505,11 +505,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Gymnast registration
   app.post('/api/gymnasts', isAuthenticated, async (req: any, res) => {
     try {
-      const gymnastData = insertGymnastSchema.parse(req.body);
-      const gymnast = await storage.createGymnast({
-        ...gymnastData,
-        userId: req.user.claims.sub
-      });
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || (user.role !== 'admin' && user.role !== 'gym_admin' && user.role !== 'coach')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // For admin registration form, don't assign userId automatically
+      const gymnastData = {
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        email: req.body.email || null,
+        birthDate: req.body.birthDate,
+        level: req.body.level.toString(),
+        gymId: req.body.gymId,
+        parentFirstName: req.body.parentFirstName || null,
+        parentLastName: req.body.parentLastName || null,
+        parentEmail: req.body.parentEmail || null,
+        parentPhone: req.body.parentPhone || null,
+        emergencyContact: req.body.emergencyContact || null,
+        emergencyPhone: req.body.emergencyPhone || null,
+        medicalInfo: req.body.medicalInfo || null,
+        type: "team" as const,
+        approved: false
+      };
+
+      const gymnast = await storage.createGymnast(gymnastData);
       res.status(201).json(gymnast);
     } catch (error) {
       console.error("Error creating gymnast:", error);

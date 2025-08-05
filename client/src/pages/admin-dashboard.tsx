@@ -763,6 +763,22 @@ export default function AdminDashboard() {
   // Gymnast Management Content
   const GymnastManagementContent = () => {
     const [selectedGymnast, setSelectedGymnast] = useState<any>(null);
+    const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+    const [registrationForm, setRegistrationForm] = useState({
+      firstName: '',
+      lastName: '',
+      email: '',
+      parentEmail: '',
+      birthDate: '',
+      level: '',
+      gymId: '',
+      parentFirstName: '',
+      parentLastName: '',
+      parentPhone: '',
+      medicalInfo: '',
+      emergencyContact: '',
+      emergencyPhone: ''
+    });
     
     const updateGymnastStatus = useMutation({
       mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -775,6 +791,30 @@ export default function AdminDashboard() {
       },
     });
 
+    const registerGymnastMutation = useMutation({
+      mutationFn: async (formData: any) => {
+        const response = await apiRequest('POST', '/api/gymnasts', formData);
+        return response.json();
+      },
+      onSuccess: () => {
+        toast({ title: "Success", description: "Gymnast registered successfully" });
+        setShowRegistrationForm(false);
+        setRegistrationForm({
+          firstName: '', lastName: '', email: '', parentEmail: '', birthDate: '',
+          level: '', gymId: '', parentFirstName: '', parentLastName: '', parentPhone: '',
+          medicalInfo: '', emergencyContact: '', emergencyPhone: ''
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/gymnasts'] });
+      },
+      onError: (error: any) => {
+        toast({ 
+          title: "Error", 
+          description: error.message || "Failed to register gymnast", 
+          variant: "destructive" 
+        });
+      }
+    });
+
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -782,24 +822,7 @@ export default function AdminDashboard() {
             <h2 className="text-2xl font-bold text-gray-900">Gymnast Management</h2>
             <p className="text-gray-600">Manage all gymnasts across the league</p>
           </div>
-          <Button onClick={() => {
-            const firstName = prompt('First Name:');
-            const lastName = prompt('Last Name:');
-            const email = prompt('Email:');
-            const level = prompt('Level (1-10):');
-            const birthDate = prompt('Birth Date (YYYY-MM-DD):');
-            
-            if (firstName && lastName && email && level && birthDate) {
-              createGymnastMutation.mutate({ 
-                firstName, 
-                lastName, 
-                email, 
-                level: parseInt(level), 
-                birthDate,
-                status: 'pending'
-              });
-            }
-          }}>+ Add New Gymnast</Button>
+          <Button onClick={() => setShowRegistrationForm(true)}>+ Register New Gymnast</Button>
         </div>
 
         {/* Gymnast Stats */}
@@ -855,10 +878,12 @@ export default function AdminDashboard() {
                         <p className="text-xs text-gray-500">Coach: {gymnast.coach}</p>
                       </div>
                       <div className="text-right">
-                        <Badge variant={gymnast.status === 'approved' ? 'default' : 'secondary'}>
-                          {gymnast.status}
-                        </Badge>
-                        <p className="text-xs text-gray-500 mt-1">{gymnast.parentEmail}</p>
+                        <div className="mb-1">
+                          <Badge variant={gymnast.status === 'approved' ? 'default' : 'secondary'}>
+                            {gymnast.status}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-gray-500">{gymnast.parentEmail}</p>
                       </div>
                     </div>
                   </div>
@@ -896,16 +921,248 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
+        {/* Gymnast Registration Form Modal */}
+        {showRegistrationForm && (
+          <Dialog open={showRegistrationForm} onOpenChange={() => setShowRegistrationForm(false)}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Gymnast Registration Form</DialogTitle>
+                <DialogDescription>
+                  Complete registration form for a new gymnast
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6">
+                {/* Gymnast Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Gymnast Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="firstName">First Name *</Label>
+                      <Input
+                        id="firstName"
+                        value={registrationForm.firstName}
+                        onChange={(e) => setRegistrationForm({...registrationForm, firstName: e.target.value})}
+                        placeholder="Enter first name"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="lastName">Last Name *</Label>
+                      <Input
+                        id="lastName"
+                        value={registrationForm.lastName}
+                        onChange={(e) => setRegistrationForm({...registrationForm, lastName: e.target.value})}
+                        placeholder="Enter last name"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="email">Gymnast Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={registrationForm.email}
+                        onChange={(e) => setRegistrationForm({...registrationForm, email: e.target.value})}
+                        placeholder="gymnast@example.com"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="birthDate">Birth Date *</Label>
+                      <Input
+                        id="birthDate"
+                        type="date"
+                        value={registrationForm.birthDate}
+                        onChange={(e) => setRegistrationForm({...registrationForm, birthDate: e.target.value})}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="level">Competition Level *</Label>
+                      <Select 
+                        value={registrationForm.level} 
+                        onValueChange={(value) => setRegistrationForm({...registrationForm, level: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">Level 1</SelectItem>
+                          <SelectItem value="2">Level 2</SelectItem>
+                          <SelectItem value="3">Level 3</SelectItem>
+                          <SelectItem value="4">Level 4</SelectItem>
+                          <SelectItem value="5">Level 5</SelectItem>
+                          <SelectItem value="6">Level 6</SelectItem>
+                          <SelectItem value="7">Level 7</SelectItem>
+                          <SelectItem value="8">Level 8</SelectItem>
+                          <SelectItem value="9">Level 9</SelectItem>
+                          <SelectItem value="10">Level 10</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="gym">Associated Gym *</Label>
+                      <Select 
+                        value={registrationForm.gymId} 
+                        onValueChange={(value) => setRegistrationForm({...registrationForm, gymId: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select gym" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {gyms.filter(gym => gym.status === 'approved').map((gym) => (
+                            <SelectItem key={gym.id} value={gym.id}>
+                              {gym.name} - {gym.city}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Parent/Guardian Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Parent/Guardian Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="parentFirstName">Parent/Guardian First Name *</Label>
+                      <Input
+                        id="parentFirstName"
+                        value={registrationForm.parentFirstName}
+                        onChange={(e) => setRegistrationForm({...registrationForm, parentFirstName: e.target.value})}
+                        placeholder="Enter parent first name"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="parentLastName">Parent/Guardian Last Name *</Label>
+                      <Input
+                        id="parentLastName"
+                        value={registrationForm.parentLastName}
+                        onChange={(e) => setRegistrationForm({...registrationForm, parentLastName: e.target.value})}
+                        placeholder="Enter parent last name"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="parentEmail">Parent/Guardian Email *</Label>
+                      <Input
+                        id="parentEmail"
+                        type="email"
+                        value={registrationForm.parentEmail}
+                        onChange={(e) => setRegistrationForm({...registrationForm, parentEmail: e.target.value})}
+                        placeholder="parent@example.com"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="parentPhone">Parent/Guardian Phone *</Label>
+                      <Input
+                        id="parentPhone"
+                        type="tel"
+                        value={registrationForm.parentPhone}
+                        onChange={(e) => setRegistrationForm({...registrationForm, parentPhone: e.target.value})}
+                        placeholder="(555) 123-4567"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Emergency Contact */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Emergency Contact</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="emergencyContact">Emergency Contact Name *</Label>
+                      <Input
+                        id="emergencyContact"
+                        value={registrationForm.emergencyContact}
+                        onChange={(e) => setRegistrationForm({...registrationForm, emergencyContact: e.target.value})}
+                        placeholder="Emergency contact full name"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="emergencyPhone">Emergency Contact Phone *</Label>
+                      <Input
+                        id="emergencyPhone"
+                        type="tel"
+                        value={registrationForm.emergencyPhone}
+                        onChange={(e) => setRegistrationForm({...registrationForm, emergencyPhone: e.target.value})}
+                        placeholder="(555) 987-6543"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Medical Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Medical Information</h3>
+                  <div>
+                    <Label htmlFor="medicalInfo">Medical Conditions, Allergies, or Special Instructions</Label>
+                    <Textarea
+                      id="medicalInfo"
+                      value={registrationForm.medicalInfo}
+                      onChange={(e) => setRegistrationForm({...registrationForm, medicalInfo: e.target.value})}
+                      placeholder="Please list any medical conditions, allergies, medications, or special instructions..."
+                      rows={4}
+                    />
+                  </div>
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowRegistrationForm(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      // Validate required fields
+                      if (!registrationForm.firstName || !registrationForm.lastName || 
+                          !registrationForm.birthDate || !registrationForm.level || 
+                          !registrationForm.gymId || !registrationForm.parentFirstName || 
+                          !registrationForm.parentLastName || !registrationForm.parentEmail || 
+                          !registrationForm.parentPhone || !registrationForm.emergencyContact || 
+                          !registrationForm.emergencyPhone) {
+                        toast({
+                          title: "Validation Error",
+                          description: "Please fill in all required fields",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+
+                      registerGymnastMutation.mutate(registrationForm);
+                    }}
+                    disabled={registerGymnastMutation.isPending}
+                  >
+                    {registerGymnastMutation.isPending ? 'Registering...' : 'Register Gymnast'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
         {/* Gymnast Detail Modal */}
         {selectedGymnast && (
           <Dialog open={!!selectedGymnast} onOpenChange={() => setSelectedGymnast(null)}>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>
-                  {selectedGymnast.id ? 'Gymnast Details' : 'Add New Gymnast'}
-                </DialogTitle>
+                <DialogTitle>Gymnast Details</DialogTitle>
                 <DialogDescription>
-                  {selectedGymnast.id ? 'View and manage gymnast information' : 'Add a new gymnast to the league'}
+                  View and manage gymnast information
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
