@@ -413,137 +413,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get gyms (remove auth for demo)
+  // Get gyms 
   app.get('/api/gyms', async (req, res) => {
     try {
-      // Return demo gyms for now
-      const demoGyms = [
-        { 
-          id: '1', 
-          name: 'Elite Gymnastics Academy', 
-          city: 'New York', 
-          state: 'NY', 
-          status: 'approved',
-          address: '123 Gymnastics Lane',
-          zipCode: '10001',
-          phone: '(555) 123-4567',
-          email: 'info@elitegymnastics.com',
-          website: 'www.elitegymnastics.com',
-          establishedYear: '2010',
-          facilitySize: '15,000 sq ft',
-          activeCoaches: 8,
-          activeGymnasts: 120
-        },
-        { 
-          id: '2', 
-          name: 'Olympic Dreams Gym', 
-          city: 'Chicago', 
-          state: 'IL', 
-          status: 'approved',
-          address: '456 Champion Blvd',
-          zipCode: '60601',
-          phone: '(555) 234-5678',
-          email: 'contact@olympicdreams.com',
-          website: 'www.olympicdreams.com',
-          establishedYear: '2008',
-          facilitySize: '12,000 sq ft',
-          activeCoaches: 6,
-          activeGymnasts: 95
-        },
-        { 
-          id: '3', 
-          name: 'Star Gymnastics Center', 
-          city: 'Los Angeles', 
-          state: 'CA', 
-          status: 'pending',
-          address: '789 Athletic Ave',
-          zipCode: '90210',
-          phone: '(555) 345-6789',
-          email: 'admin@stargymnastics.com',
-          website: 'www.stargymnastics.com',
-          establishedYear: '2015',
-          facilitySize: '18,000 sq ft',
-          activeCoaches: 10,
-          activeGymnasts: 85
-        },
-        { 
-          id: '4', 
-          name: 'Champion Athletics', 
-          city: 'Houston', 
-          state: 'TX', 
-          status: 'approved',
-          address: '321 Victory Street',
-          zipCode: '77001',
-          phone: '(555) 456-7890',
-          email: 'info@championathletics.com',
-          website: 'www.championathletics.com',
-          establishedYear: '2012',
-          facilitySize: '14,000 sq ft',
-          activeCoaches: 7,
-          activeGymnasts: 110
-        }
-      ];
-      res.json(demoGyms);
+      const gyms = await storage.getGyms();
+      res.json(gyms);
     } catch (error) {
       console.error("Error fetching gyms:", error);
       res.status(500).json({ message: "Failed to fetch gyms" });
-    }
-  });
-
-  // Add new team/gym registration
-  app.post('/api/gyms', async (req, res) => {
-    try {
-      const {
-        adminFirstName,
-        adminLastName, 
-        adminEmail,
-        teamName,
-        city,
-        website,
-        phone,
-        address,
-        state,
-        zipCode,
-        establishedYear,
-        facilitySize
-      } = req.body;
-
-      // Validate required fields
-      if (!adminFirstName || !adminLastName || !adminEmail || !teamName || !city) {
-        return res.status(400).json({ 
-          message: 'Missing required fields: Administrator name, email, team name, and city are required' 
-        });
-      }
-
-      const newGym = {
-        id: `gym_${Date.now()}`,
-        name: teamName,
-        city,
-        state: state || '',
-        status: 'pending',
-        address: address || '',
-        zipCode: zipCode || '',
-        phone: phone || '',
-        email: adminEmail,
-        website: website || '',
-        establishedYear: establishedYear || '',
-        facilitySize: facilitySize || '',
-        activeCoaches: 0,
-        activeGymnasts: 0,
-        // Team administrator information
-        adminFirstName,
-        adminLastName,
-        adminEmail,
-        createdAt: new Date().toISOString()
-      };
-      
-      res.status(201).json({ 
-        message: 'Team registration submitted successfully. Pending approval.',
-        gym: newGym 
-      });
-    } catch (error) {
-      console.error("Error creating team registration:", error);
-      res.status(500).json({ message: "Failed to register team" });
     }
   });
 
