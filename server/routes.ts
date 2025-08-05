@@ -159,18 +159,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin API endpoints (remove auth requirement for demo)
+  // Admin API endpoints
   app.get('/api/users', async (req, res) => {
     try {
-      // Return demo users for now
-      const demoUsers = [
-        { id: '1', firstName: 'Sarah', lastName: 'Johnson', email: 'sarah@example.com', role: 'coach' },
-        { id: '2', firstName: 'Mike', lastName: 'Chen', email: 'mike@example.com', role: 'gymnast' },
-        { id: '3', firstName: 'Lisa', lastName: 'Rodriguez', email: 'lisa@example.com', role: 'gym_admin' },
-        { id: '4', firstName: 'Emma', lastName: 'Wilson', email: 'emma@example.com', role: 'gymnast' },
-        { id: '5', firstName: 'David', lastName: 'Brown', email: 'david@example.com', role: 'coach' },
-      ];
-      res.json(demoUsers);
+      const users = await storage.getAllUsers();
+      res.json(users);
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
@@ -556,6 +549,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all gymnasts (admin only)
+  app.get('/api/gymnasts', async (req, res) => {
+    try {
+      const gymnasts = await storage.getAllGymnasts();
+      res.json(gymnasts);
+    } catch (error) {
+      console.error("Error fetching gymnasts:", error);
+      res.status(500).json({ message: "Failed to fetch gymnasts" });
+    }
+  });
+
+  // Update gymnast approval
+  app.patch('/api/gymnasts/:id/approve', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || (user.role !== 'admin' && user.role !== 'coach' && user.role !== 'gym_admin')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const { approved } = req.body;
+      const gymnast = await storage.updateGymnastApproval(req.params.id, approved);
+      res.json(gymnast);
+    } catch (error) {
+      console.error("Error updating gymnast approval:", error);
+      res.status(500).json({ message: "Failed to update gymnast approval" });
+    }
+  });
+
   // Approve gymnast (coaches only)
   app.patch('/api/gymnasts/:id/approve', isAuthenticated, async (req: any, res) => {
     try {
@@ -646,6 +666,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Complete challenge
+  app.post('/api/challenges/:id/complete', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const gymnast = await storage.getGymnastByUserId(user.id);
+      if (!gymnast) {
+        return res.status(400).json({ message: "Gymnast profile not found" });
+      }
+
+      await storage.completeChallenge(req.params.id, gymnast.id);
+      res.json({ message: "Challenge completed successfully" });
+    } catch (error) {
+      console.error("Error completing challenge:", error);
+      res.status(500).json({ message: "Failed to complete challenge" });
+    }
+  });
+
   // Reward creation (admin only)
   app.post('/api/rewards', isAuthenticated, async (req: any, res) => {
     try {
@@ -670,6 +711,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching rewards:", error);
       res.status(500).json({ message: "Failed to fetch rewards" });
+    }
+  });
+
+  // Redeem reward
+  app.post('/api/rewards/:id/redeem', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const gymnast = await storage.getGymnastByUserId(user.id);
+      if (!gymnast) {
+        return res.status(400).json({ message: "Gymnast profile not found" });
+      }
+
+      const { pointsSpent } = req.body;
+      await storage.redeemReward(req.params.id, gymnast.id, pointsSpent);
+      res.json({ message: "Reward redeemed successfully" });
+    } catch (error) {
+      console.error("Error redeeming reward:", error);
+      res.status(500).json({ message: "Failed to redeem reward" });
     }
   });
 
@@ -724,7 +787,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get leaderboard
+  // Score operations
+  app.post('/api/scores', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || (user.role !== 'admin' && user.role !== 'coach')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const score = await storage.createScore(req.body);
+      res.status(201).json(score);
+    } catch (error) {
+      console.error("Error creating score:", error);
+      res.status(400).json({ message: "Failed to create score" });
+    }
+  });
+
+  app.get('/api/gymnasts/:id/scores', async (req, res) => {
+    try {
+      const scores = await storage.getScoresByGymnast(req.params.id);
+      res.json(scores);
+    } catch (error) {
+      console.error("Error fetching scores:", error);
+      res.status(500).json({ message: "Failed to fetch scores" });
+    }
+  });
+
+  // Get leaderboard with different types
   app.get('/api/leaderboard', async (req, res) => {
     try {
       const { type = 'individual', level, gymId } = req.query;
@@ -733,6 +822,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching leaderboard:", error);
       res.status(500).json({ message: "Failed to fetch leaderboard" });
+    }
+  });
+
+  app.get('/api/leaderboard/individual', async (req, res) => {
+    try {
+      const { level, gymId } = req.query;
+      const leaderboard = await storage.getLeaderboard('individual', level as string, gymId as string);
+      res.json(leaderboard);
+    } catch (error) {
+      console.error("Error fetching individual leaderboard:", error);
+      res.status(500).json({ message: "Failed to fetch individual leaderboard" });
+    }
+  });
+
+  // Email operations
+  app.get('/api/email-templates', async (req, res) => {
+    try {
+      const templates = await storage.getEmailTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching email templates:", error);
+      res.status(500).json({ message: "Failed to fetch email templates" });
+    }
+  });
+
+  app.get('/api/emails/history', async (req, res) => {
+    try {
+      const history = await storage.getEmailHistory();
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching email history:", error);
+      res.status(500).json({ message: "Failed to fetch email history" });
+    }
+  });
+
+  app.post('/api/emails/send', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || (user.role !== 'admin' && user.role !== 'gym_admin')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.sendEmail(req.body);
+      res.json({ message: "Email sent successfully" });
+    } catch (error) {
+      console.error("Error sending email:", error);
+      res.status(500).json({ message: "Failed to send email" });
+    }
+  });
+
+  // Revenue endpoint (demo data)
+  app.get('/api/revenue', async (req, res) => {
+    try {
+      const revenue = {
+        total: 28450,
+        growth: 12,
+        monthly: [
+          { month: "Jan", amount: 2200 },
+          { month: "Feb", amount: 2800 },
+          { month: "Mar", amount: 3100 },
+          { month: "Apr", amount: 2900 },
+          { month: "May", amount: 3400 },
+          { month: "Jun", amount: 3800 }
+        ]
+      };
+      res.json(revenue);
+    } catch (error) {
+      console.error("Error fetching revenue:", error);
+      res.status(500).json({ message: "Failed to fetch revenue" });
     }
   });
 

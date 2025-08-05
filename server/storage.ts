@@ -38,6 +38,8 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
+  updateUserRole(userId: string, role: string): Promise<User>;
   
   // Gym operations
   createGym(gym: InsertGym): Promise<Gym>;
@@ -52,6 +54,7 @@ export interface IStorage {
   createGymnast(gymnast: InsertGymnast): Promise<Gymnast>;
   getGymnast(id: string): Promise<Gymnast | undefined>;
   getGymnastsByGym(gymId: string): Promise<Gymnast[]>;
+  getAllGymnasts(): Promise<Gymnast[]>;
   updateGymnastApproval(id: string, approved: boolean): Promise<Gymnast>;
   updateGymnastPoints(id: string, points: number): Promise<Gymnast>;
   
@@ -60,15 +63,19 @@ export interface IStorage {
   getEvent(id: string): Promise<Event | undefined>;
   getEvents(): Promise<Event[]>;
   updateEventApproval(id: string, approved: boolean): Promise<Event>;
+  createEventSession(session: any): Promise<EventSession>;
+  getEventSessions(eventId: string): Promise<EventSession[]>;
   
   // Challenge operations
   createChallenge(challenge: InsertChallenge): Promise<Challenge>;
   getChallenges(): Promise<Challenge[]>;
   getActiveChallengesForLevel(level: string): Promise<Challenge[]>;
+  completeChallenge(challengeId: string, gymnastId: string): Promise<void>;
   
   // Reward operations
   createReward(reward: InsertReward): Promise<Reward>;
   getActiveRewards(): Promise<Reward[]>;
+  redeemReward(rewardId: string, gymnastId: string, pointsSpent: number): Promise<void>;
   
   // Coach operations
   addCoachToGym(gymId: string, userId: string, isAdmin: boolean): Promise<void>;
@@ -76,6 +83,12 @@ export interface IStorage {
   
   // Score operations
   getScoresByGymnast(gymnastId: string): Promise<Score[]>;
+  createScore(score: any): Promise<Score>;
+  
+  // Email operations
+  getEmailTemplates(): Promise<any[]>;
+  getEmailHistory(): Promise<any[]>;
+  sendEmail(emailData: any): Promise<void>;
   
   // Additional operations for profile and registration
   getGymsByUser(userId: string): Promise<Gym[]>;
@@ -216,6 +229,10 @@ export class DatabaseStorage implements IStorage {
     return newGymnast;
   }
 
+  async getAllGymnasts(): Promise<Gymnast[]> {
+    return db.select().from(gymnasts).orderBy(asc(gymnasts.lastName));
+  }
+
   async getGymnast(id: string): Promise<Gymnast | undefined> {
     const [gymnast] = await db.select().from(gymnasts).where(eq(gymnasts.id, id));
     return gymnast;
@@ -243,6 +260,19 @@ export class DatabaseStorage implements IStorage {
     return gymnast;
   }
 
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users).orderBy(asc(users.lastName));
+  }
+
+  async updateUserRole(userId: string, role: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ role })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
   // Event operations
   async createEvent(event: InsertEvent): Promise<Event> {
     const [newEvent] = await db.insert(events).values(event).returning();
@@ -267,6 +297,15 @@ export class DatabaseStorage implements IStorage {
     return event;
   }
 
+  async createEventSession(session: any): Promise<EventSession> {
+    const [newSession] = await db.insert(eventSessions).values(session).returning();
+    return newSession;
+  }
+
+  async getEventSessions(eventId: string): Promise<EventSession[]> {
+    return db.select().from(eventSessions).where(eq(eventSessions.eventId, eventId));
+  }
+
   // Challenge operations
   async createChallenge(challenge: InsertChallenge): Promise<Challenge> {
     const [newChallenge] = await db.insert(challenges).values(challenge).returning();
@@ -283,6 +322,21 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(challenges.createdAt));
   }
 
+  async completeChallenge(challengeId: string, gymnastId: string): Promise<void> {
+    await db.insert(challengeCompletions).values({ challengeId, gymnastId });
+    
+    // Award points to gymnast
+    const [challenge] = await db.select().from(challenges).where(eq(challenges.id, challengeId));
+    if (challenge) {
+      const [gymnast] = await db.select().from(gymnasts).where(eq(gymnasts.id, gymnastId));
+      if (gymnast) {
+        await db.update(gymnasts)
+          .set({ points: (gymnast.points || 0) + challenge.points })
+          .where(eq(gymnasts.id, gymnastId));
+      }
+    }
+  }
+
   // Reward operations
   async createReward(reward: InsertReward): Promise<Reward> {
     const [newReward] = await db.insert(rewards).values(reward).returning();
@@ -293,6 +347,18 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(rewards)
       .where(eq(rewards.active, true))
       .orderBy(asc(rewards.pointsCost));
+  }
+
+  async redeemReward(rewardId: string, gymnastId: string, pointsSpent: number): Promise<void> {
+    await db.insert(rewardRedemptions).values({ rewardId, gymnastId, pointsSpent });
+    
+    // Deduct points from gymnast
+    const [gymnast] = await db.select().from(gymnasts).where(eq(gymnasts.id, gymnastId));
+    if (gymnast) {
+      await db.update(gymnasts)
+        .set({ points: Math.max(0, (gymnast.points || 0) - pointsSpent) })
+        .where(eq(gymnasts.id, gymnastId));
+    }
   }
 
   // Coach operations
@@ -324,6 +390,59 @@ export class DatabaseStorage implements IStorage {
   // Score operations
   async getScoresByGymnast(gymnastId: string): Promise<Score[]> {
     return db.select().from(scores).where(eq(scores.gymnastId, gymnastId)).orderBy(desc(scores.createdAt));
+  }
+
+  async createScore(score: any): Promise<Score> {
+    const [newScore] = await db.insert(scores).values(score).returning();
+    return newScore;
+  }
+
+  // Email operations
+  async getEmailTemplates(): Promise<any[]> {
+    // Return demo email templates for now
+    return [
+      {
+        id: "welcome",
+        name: "Welcome Email",
+        subject: "Welcome to JGL!",
+        content: "Welcome to the Jewish Gymnastics League...",
+        active: true
+      },
+      {
+        id: "event_reminder",
+        name: "Event Reminder",
+        subject: "Upcoming Event Reminder",
+        content: "Don't forget about the upcoming event...",
+        active: true
+      }
+    ];
+  }
+
+  async getEmailHistory(): Promise<any[]> {
+    // Return demo email history for now
+    return [
+      {
+        id: "email_1",
+        subject: "Welcome to JGL!",
+        recipients: ["parent1@example.com", "parent2@example.com"],
+        sentAt: "2024-01-15T10:30:00Z",
+        status: "delivered",
+        template: "welcome"
+      },
+      {
+        id: "email_2",
+        subject: "Spring Classic Registration Open",
+        recipients: ["all_coaches"],
+        sentAt: "2024-01-20T14:00:00Z",
+        status: "delivered",
+        template: "registration_open"
+      }
+    ];
+  }
+
+  async sendEmail(emailData: any): Promise<void> {
+    // TODO: Implement actual email sending with SendGrid
+    console.log('Email sent:', emailData);
   }
 
   // Additional operations for profile and registration

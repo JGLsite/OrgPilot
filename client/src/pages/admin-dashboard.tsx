@@ -22,46 +22,138 @@ export default function AdminDashboard() {
   const [selectedTab, setSelectedTab] = useState("dashboard");
 
   // Stats queries with proper typing
-  const { data: gyms = [] } = useQuery<any[]>({
+  const { data: gyms = [], isLoading: gymsLoading } = useQuery<any[]>({
     queryKey: ['/api/gyms'],
     retry: false,
   });
 
-  const { data: events = [] } = useQuery<any[]>({
+  const { data: events = [], isLoading: eventsLoading } = useQuery<any[]>({
     queryKey: ['/api/events'],
     retry: false,
   });
 
-  const { data: users = [] } = useQuery<any[]>({
+  const { data: users = [], isLoading: usersLoading } = useQuery<any[]>({
     queryKey: ['/api/users'],
     retry: false,
   });
 
-  const { data: gymnasts = [] } = useQuery<any[]>({
+  const { data: gymnasts = [], isLoading: gymnastsLoading } = useQuery<any[]>({
     queryKey: ['/api/gymnasts'],
     retry: false,
   });
 
-  const { data: emailTemplates = [] } = useQuery<any[]>({
+  const { data: emailTemplates = [], isLoading: templatesLoading } = useQuery<any[]>({
     queryKey: ['/api/email-templates'],
     retry: false,
   });
 
-  const { data: emailHistory = [] } = useQuery<any[]>({
+  const { data: emailHistory = [], isLoading: historyLoading } = useQuery<any[]>({
     queryKey: ['/api/emails/history'],
     retry: false,
   });
 
-  const { data: revenue = { total: 28450, growth: 12 } } = useQuery({
+  const { data: revenue = { total: 28450, growth: 12 }, isLoading: revenueLoading } = useQuery({
     queryKey: ['/api/revenue'],
     retry: false,
   });
 
+  const { data: challenges = [], isLoading: challengesLoading } = useQuery<any[]>({
+    queryKey: ['/api/challenges'],
+    retry: false,
+  });
+
+  const { data: rewards = [], isLoading: rewardsLoading } = useQuery<any[]>({
+    queryKey: ['/api/rewards'],
+    retry: false,
+  });
+
+  // Mutations for various operations
+  const approveGymMutation = useMutation({
+    mutationFn: async ({ id, approved }: { id: string; approved: boolean }) => {
+      return apiRequest('PATCH', `/api/gyms/${id}/approve`, { approved });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/gyms'] });
+      toast({ title: "Gym approval updated successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to update gym approval", variant: "destructive" });
+    }
+  });
+
+  const approveGymnastMutation = useMutation({
+    mutationFn: async ({ id, approved }: { id: string; approved: boolean }) => {
+      return apiRequest('PATCH', `/api/gymnasts/${id}/approve`, { approved });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/gymnasts'] });
+      toast({ title: "Gymnast approval updated successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to update gymnast approval", variant: "destructive" });
+    }
+  });
+
+  const createEventMutation = useMutation({
+    mutationFn: async (eventData: any) => {
+      return apiRequest('POST', '/api/events', eventData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/events'] });
+      toast({ title: "Event created successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to create event", variant: "destructive" });
+    }
+  });
+
+  const createChallengeMutation = useMutation({
+    mutationFn: async (challengeData: any) => {
+      return apiRequest('POST', '/api/challenges', challengeData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/challenges'] });
+      toast({ title: "Challenge created successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to create challenge", variant: "destructive" });
+    }
+  });
+
+  const createRewardMutation = useMutation({
+    mutationFn: async (rewardData: any) => {
+      return apiRequest('POST', '/api/rewards', rewardData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rewards'] });
+      toast({ title: "Reward created successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to create reward", variant: "destructive" });
+    }
+  });
+
+  const sendEmailMutation = useMutation({
+    mutationFn: async (emailData: any) => {
+      return apiRequest('POST', '/api/emails/send', emailData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/emails/history'] });
+      toast({ title: "Email sent successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to send email", variant: "destructive" });
+    }
+  });
+
   // Calculate stats
   const totalGyms = gyms.length;
-  const activeGymnasts = users.filter(u => u.role === 'gymnast').length;
+  const activeGymnasts = gymnasts.length;
   const upcomingEvents = events.filter(e => new Date(e.date) > new Date()).length;
-  const pendingGyms = gyms.filter(g => g.status === 'pending').length;
+  const pendingGyms = gyms.filter(g => !g.approved).length;
+  const pendingGymnasts = gymnasts.filter(g => !g.approved).length;
+  const activeUsers = users.length;
+  const activeChallenges = challenges.filter(c => c.active).length;
 
   // Sidebar Component
   const Sidebar = () => (
@@ -1469,52 +1561,15 @@ export default function AdminDashboard() {
       case "gyms":
         return <GymManagementContent />;
       case "members":
-        return (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Member Management</h2>
-            <div className="grid gap-4">
-              {users.map((user) => (
-                <Card key={user.id}>
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h3 className="font-bold">{user.firstName} {user.lastName}</h3>
-                        <p className="text-gray-600">{user.email}</p>
-                      </div>
-                      <Badge>{user.role}</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        );
+        return <MembersContent />;
+      case "challenges":
+        return <ChallengesContent />;
+      case "rewards":
+        return <RewardsContent />;
+      case "scores":
+        return <ScoresContent />;
       case "events":
-        return (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Event Management</h2>
-              <Button>Create New Event</Button>
-            </div>
-            <div className="grid gap-4">
-              {events.map((event) => (
-                <Card key={event.id}>
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h3 className="font-bold">{event.name}</h3>
-                        <p className="text-gray-600">{event.date} • {event.location}</p>
-                      </div>
-                      <Badge variant={event.status === 'approved' ? 'default' : 'secondary'}>
-                        {event.status}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        );
+        return <EventsContent />;
       default:
         return (
           <div className="text-center py-12">
@@ -1540,6 +1595,474 @@ export default function AdminDashboard() {
       </div>
     );
   }
+
+  // Additional content components
+  const MembersContent = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Member Management</h2>
+          <p className="text-gray-600">Manage all platform users and their roles</p>
+        </div>
+        <Button onClick={() => {}}>+ Add Member</Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">{users.length}</div>
+            <div className="text-sm text-gray-600">Total Users</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">
+              {users.filter(u => u.role === 'gym_admin').length}
+            </div>
+            <div className="text-sm text-gray-600">Gym Admins</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-purple-600">
+              {users.filter(u => u.role === 'coach').length}
+            </div>
+            <div className="text-sm text-gray-600">Coaches</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-yellow-600">
+              {users.filter(u => u.role === 'gymnast').length}
+            </div>
+            <div className="text-sm text-gray-600">Gymnasts</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All Members</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {users.map((user) => (
+              <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                    <span className="text-sm font-medium">
+                      {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">{user.firstName} {user.lastName}</h3>
+                    <p className="text-sm text-gray-600">{user.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                    {user.role}
+                  </Badge>
+                  <Button size="sm" variant="outline">Edit Role</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const ChallengesContent = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Challenge Management</h2>
+          <p className="text-gray-600">Create and manage skill-based challenges</p>
+        </div>
+        <Button onClick={() => {}}>+ Create Challenge</Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">{activeChallenges}</div>
+            <div className="text-sm text-gray-600">Active Challenges</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">
+              {challenges.filter(c => c.isCoachChallenge).length}
+            </div>
+            <div className="text-sm text-gray-600">Coach Challenges</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-purple-600">
+              {challenges.filter(c => !c.isCoachChallenge).length}
+            </div>
+            <div className="text-sm text-gray-600">League Challenges</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All Challenges</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {challenges.map((challenge) => (
+              <div key={challenge.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex-1">
+                  <h3 className="font-semibold">{challenge.title}</h3>
+                  <p className="text-sm text-gray-600">{challenge.description}</p>
+                  <div className="flex items-center space-x-4 mt-2">
+                    <Badge variant="outline">{challenge.points} points</Badge>
+                    <Badge variant={challenge.isCoachChallenge ? 'secondary' : 'default'}>
+                      {challenge.isCoachChallenge ? 'Coach' : 'League'}
+                    </Badge>
+                    {challenge.levels && (
+                      <span className="text-xs text-gray-500">
+                        Levels: {challenge.levels.join(', ')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <Button size="sm" variant="outline">Edit</Button>
+                  <Button size="sm" variant="outline">
+                    {challenge.active ? 'Deactivate' : 'Activate'}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const RewardsContent = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Rewards Store</h2>
+          <p className="text-gray-600">Manage prizes and point redemption system</p>
+        </div>
+        <Button onClick={() => {}}>+ Add Reward</Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">{rewards.length}</div>
+            <div className="text-sm text-gray-600">Available Rewards</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">
+              {rewards.filter(r => r.pointsCost <= 100).length}
+            </div>
+            <div className="text-sm text-gray-600">Low Cost (&le;100 pts)</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-purple-600">
+              {rewards.filter(r => r.pointsCost > 100).length}
+            </div>
+            <div className="text-sm text-gray-600">High Value (&gt;100 pts)</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Reward Catalog</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {rewards.map((reward) => (
+              <Card key={reward.id}>
+                <CardContent className="p-4">
+                  <div className="text-center space-y-3">
+                    <div className="w-16 h-16 bg-gray-200 rounded-lg mx-auto flex items-center justify-center">
+                      <span className="text-2xl">🎁</span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">{reward.name}</h3>
+                      <p className="text-sm text-gray-600">{reward.description}</p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline">{reward.pointsCost} points</Badge>
+                      <Badge variant={reward.active ? 'default' : 'secondary'}>
+                        {reward.active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button size="sm" variant="outline" className="flex-1">Edit</Button>
+                      <Button size="sm" variant="outline" className="flex-1">
+                        {reward.active ? 'Disable' : 'Enable'}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const ScoresContent = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Score Management</h2>
+          <p className="text-gray-600">Import and manage gymnast competition scores</p>
+        </div>
+        <div className="flex space-x-2">
+          <Button variant="outline">Import Scores</Button>
+          <Button>Add Manual Score</Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">247</div>
+            <div className="text-sm text-gray-600">Total Scores</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">12</div>
+            <div className="text-sm text-gray-600">Recent Events</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-yellow-600">5</div>
+            <div className="text-sm text-gray-600">Score Outs</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-purple-600">38.5</div>
+            <div className="text-sm text-gray-600">Avg All-Around</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="recent" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="recent">Recent Scores</TabsTrigger>
+          <TabsTrigger value="scoreouts">Score Outs</TabsTrigger>
+          <TabsTrigger value="import">Import Data</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="recent">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Competition Scores</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Demo score data */}
+                {[
+                  { gymnast: "Emma Johnson", event: "Spring Classic", vault: 9.2, bars: 8.8, beam: 9.1, floor: 9.3, aa: 36.4 },
+                  { gymnast: "Sarah Miller", event: "Spring Classic", vault: 8.9, bars: 9.0, beam: 8.7, floor: 9.2, aa: 35.8 },
+                  { gymnast: "Maya Chen", event: "Spring Classic", vault: 9.1, bars: 8.6, beam: 8.9, floor: 9.0, aa: 35.6 }
+                ].map((score, index) => (
+                  <div key={index} className="grid grid-cols-7 gap-4 p-4 border rounded-lg">
+                    <div>
+                      <div className="font-semibold">{score.gymnast}</div>
+                      <div className="text-sm text-gray-600">{score.event}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-medium">{score.vault}</div>
+                      <div className="text-xs text-gray-500">Vault</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-medium">{score.bars}</div>
+                      <div className="text-xs text-gray-500">Bars</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-medium">{score.beam}</div>
+                      <div className="text-xs text-gray-500">Beam</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-medium">{score.floor}</div>
+                      <div className="text-xs text-gray-500">Floor</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-bold text-blue-600">{score.aa}</div>
+                      <div className="text-xs text-gray-500">All-Around</div>
+                    </div>
+                    <div className="flex space-x-1">
+                      <Button size="sm" variant="outline">Edit</Button>
+                      <Button size="sm" variant="outline">Delete</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="scoreouts">
+          <Card>
+            <CardHeader>
+              <CardTitle>Gymnasts Who Scored Out</CardTitle>
+              <p className="text-sm text-gray-600">
+                Gymnasts who achieved scores meeting advancement requirements
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[
+                  { gymnast: "Anna Rodriguez", level: "Level 4", aa: 37.2, meets: "Spring Classic, Winter Cup", eligible: "Level 5" },
+                  { gymnast: "Sofia Kim", level: "Level 6", aa: 36.8, meets: "Regional Championship", eligible: "Level 7" }
+                ].map((scoreout, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50">
+                    <div>
+                      <h3 className="font-semibold">{scoreout.gymnast}</h3>
+                      <p className="text-sm text-gray-600">Current: {scoreout.level} → Eligible: {scoreout.eligible}</p>
+                      <p className="text-xs text-gray-500">Qualifying AA: {scoreout.aa} at {scoreout.meets}</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button size="sm">Advance Level</Button>
+                      <Button size="sm" variant="outline">Review</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="import">
+          <Card>
+            <CardHeader>
+              <CardTitle>Import Score Data</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Select Event</Label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose event" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="spring-classic">Spring Classic 2024</SelectItem>
+                    <SelectItem value="winter-cup">Winter Cup 2024</SelectItem>
+                    <SelectItem value="regional">Regional Championship</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Upload Score File</Label>
+                <Input type="file" accept=".csv,.xlsx" />
+                <p className="text-xs text-gray-500 mt-1">
+                  Upload CSV or Excel file with gymnast scores
+                </p>
+              </div>
+              <Button className="w-full">Import Scores</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+
+  const EventsContent = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Event Management</h2>
+          <p className="text-gray-600">Create and manage gymnastics competitions</p>
+        </div>
+        <Button onClick={() => {}}>+ Create Event</Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">{events.length}</div>
+            <div className="text-sm text-gray-600">Total Events</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">{upcomingEvents}</div>
+            <div className="text-sm text-gray-600">Upcoming</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-yellow-600">
+              {events.filter(e => !e.approved).length}
+            </div>
+            <div className="text-sm text-gray-600">Pending Approval</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-purple-600">125</div>
+            <div className="text-sm text-gray-600">Total Registrations</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All Events</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {events.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600">No events created yet.</p>
+                <Button className="mt-4">Create First Event</Button>
+              </div>
+            ) : (
+              events.map((event) => (
+                <div key={event.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{event.name}</h3>
+                    <p className="text-sm text-gray-600">
+                      {new Date(event.date).toLocaleDateString()} • {event.location}
+                    </p>
+                    <div className="flex items-center space-x-4 mt-2">
+                      <span className="text-xs text-gray-500">
+                        Registration: {new Date(event.registrationOpen).toLocaleDateString()} - {new Date(event.registrationClose).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Badge variant={event.approved ? 'default' : 'secondary'}>
+                      {event.approved ? 'Approved' : 'Pending'}
+                    </Badge>
+                    <div className="flex space-x-2">
+                      <Button size="sm" variant="outline">View Details</Button>
+                      {!event.approved && (
+                        <Button size="sm">Approve</Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   return (
     <div className="flex h-screen bg-gray-50">
