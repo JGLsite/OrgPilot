@@ -37,6 +37,21 @@ export default function AdminDashboard() {
     retry: false,
   });
 
+  const { data: gymnasts = [] } = useQuery({
+    queryKey: ['/api/gymnasts'],
+    retry: false,
+  });
+
+  const { data: emailTemplates = [] } = useQuery({
+    queryKey: ['/api/email-templates'],
+    retry: false,
+  });
+
+  const { data: emailHistory = [] } = useQuery({
+    queryKey: ['/api/emails/history'],
+    retry: false,
+  });
+
   const { data: revenue = { total: 28450, growth: 12 } } = useQuery({
     queryKey: ['/api/revenue'],
     retry: false,
@@ -82,6 +97,18 @@ export default function AdminDashboard() {
             label="Members" 
             active={selectedTab === "members"}
             onClick={() => setSelectedTab("members")}
+          />
+          <SidebarItem 
+            icon="🤸" 
+            label="Gymnasts" 
+            active={selectedTab === "gymnasts"}
+            onClick={() => setSelectedTab("gymnasts")}
+          />
+          <SidebarItem 
+            icon="✉️" 
+            label="Email System" 
+            active={selectedTab === "emails"}
+            onClick={() => setSelectedTab("emails")}
           />
           <SidebarItem 
             icon="📅" 
@@ -552,11 +579,534 @@ export default function AdminDashboard() {
     </div>
   );
 
+  // Gymnast Management Content
+  const GymnastManagementContent = () => {
+    const [selectedGymnast, setSelectedGymnast] = useState(null);
+    
+    const updateGymnastStatus = useMutation({
+      mutationFn: async ({ id, status }) => {
+        const response = await apiRequest('PATCH', `/api/gymnasts/${id}/status`, { status });
+        return response.json();
+      },
+      onSuccess: () => {
+        toast({ title: "Success", description: "Gymnast status updated successfully" });
+        queryClient.invalidateQueries({ queryKey: ['/api/gymnasts'] });
+      },
+    });
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Gymnast Management</h2>
+            <p className="text-gray-600">Manage all gymnasts across the league</p>
+          </div>
+          <Button onClick={() => setSelectedGymnast({})}>+ Add New Gymnast</Button>
+        </div>
+
+        {/* Gymnast Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">{gymnasts.length}</div>
+              <div className="text-sm text-gray-600">Total Gymnasts</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-green-600">
+                {gymnasts.filter(g => g.status === 'approved').length}
+              </div>
+              <div className="text-sm text-gray-600">Approved</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-yellow-600">
+                {gymnasts.filter(g => g.status === 'pending').length}
+              </div>
+              <div className="text-sm text-gray-600">Pending</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {new Set(gymnasts.map(g => g.gym)).size}
+              </div>
+              <div className="text-sm text-gray-600">Gyms</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Gymnast List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>All Gymnasts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {gymnasts.map((gymnast) => (
+                <div key={gymnast.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-1">
+                        <h3 className="font-semibold">{gymnast.firstName} {gymnast.lastName}</h3>
+                        <p className="text-sm text-gray-600">
+                          Age {gymnast.age} • {gymnast.level} • {gymnast.gym}
+                        </p>
+                        <p className="text-xs text-gray-500">Coach: {gymnast.coach}</p>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant={gymnast.status === 'approved' ? 'default' : 'secondary'}>
+                          {gymnast.status}
+                        </Badge>
+                        <p className="text-xs text-gray-500 mt-1">{gymnast.parentEmail}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setSelectedGymnast(gymnast)}
+                    >
+                      View Details
+                    </Button>
+                    {gymnast.status === 'pending' && (
+                      <Button 
+                        size="sm"
+                        onClick={() => updateGymnastStatus.mutate({ id: gymnast.id, status: 'approved' })}
+                      >
+                        Approve
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Gymnast Detail Modal */}
+        {selectedGymnast && (
+          <Dialog open={!!selectedGymnast} onOpenChange={() => setSelectedGymnast(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>
+                  {selectedGymnast.id ? 'Gymnast Details' : 'Add New Gymnast'}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {selectedGymnast.id ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>First Name</Label>
+                        <Input value={selectedGymnast.firstName} readOnly />
+                      </div>
+                      <div>
+                        <Label>Last Name</Label>
+                        <Input value={selectedGymnast.lastName} readOnly />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Age</Label>
+                        <Input value={selectedGymnast.age} readOnly />
+                      </div>
+                      <div>
+                        <Label>Level</Label>
+                        <Input value={selectedGymnast.level} readOnly />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Gym</Label>
+                      <Input value={selectedGymnast.gym} readOnly />
+                    </div>
+                    <div>
+                      <Label>Coach</Label>
+                      <Input value={selectedGymnast.coach} readOnly />
+                    </div>
+                    <div>
+                      <Label>Parent Email</Label>
+                      <Input value={selectedGymnast.parentEmail} readOnly />
+                    </div>
+                    <div>
+                      <Label>Events</Label>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {selectedGymnast.events?.map((event, index) => (
+                          <Badge key={index} variant="outline">{event}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>First Name</Label>
+                        <Input placeholder="Enter first name" />
+                      </div>
+                      <div>
+                        <Label>Last Name</Label>
+                        <Input placeholder="Enter last name" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Age</Label>
+                        <Input type="number" placeholder="Age" />
+                      </div>
+                      <div>
+                        <Label>Level</Label>
+                        <Select>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="level1">Level 1</SelectItem>
+                            <SelectItem value="level2">Level 2</SelectItem>
+                            <SelectItem value="level3">Level 3</SelectItem>
+                            <SelectItem value="level4">Level 4</SelectItem>
+                            <SelectItem value="level5">Level 5</SelectItem>
+                            <SelectItem value="level6">Level 6</SelectItem>
+                            <SelectItem value="level7">Level 7</SelectItem>
+                            <SelectItem value="level8">Level 8</SelectItem>
+                            <SelectItem value="level9">Level 9</SelectItem>
+                            <SelectItem value="level10">Level 10</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Gym</Label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select gym" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {gyms.map((gym) => (
+                            <SelectItem key={gym.id} value={gym.id}>{gym.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Parent Email</Label>
+                      <Input type="email" placeholder="parent@example.com" />
+                    </div>
+                    <Button className="w-full">Add Gymnast</Button>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+    );
+  };
+
+  // Email System Content
+  const EmailSystemContent = () => {
+    const [emailForm, setEmailForm] = useState({
+      to: '',
+      subject: '',
+      message: '',
+      template: ''
+    });
+    const [activeEmailTab, setActiveEmailTab] = useState('compose');
+
+    const sendEmailMutation = useMutation({
+      mutationFn: async (emailData) => {
+        const response = await apiRequest('POST', '/api/emails/send', emailData);
+        return response.json();
+      },
+      onSuccess: (data) => {
+        toast({ 
+          title: "Email Sent!", 
+          description: `Successfully sent to ${data.recipientCount} recipients` 
+        });
+        setEmailForm({ to: '', subject: '', message: '', template: '' });
+        queryClient.invalidateQueries({ queryKey: ['/api/emails/history'] });
+      },
+    });
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Email System</h2>
+          <p className="text-gray-600">Create, send, and manage email communications</p>
+        </div>
+
+        <Tabs value={activeEmailTab} onValueChange={setActiveEmailTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="compose">Compose</TabsTrigger>
+            <TabsTrigger value="templates">Templates</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="automation">Automation</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="compose">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Compose Email</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Recipients</Label>
+                    <Select value={emailForm.to} onValueChange={(value) => setEmailForm({...emailForm, to: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select recipients" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all_users">All Users</SelectItem>
+                        <SelectItem value="all_coaches">All Coaches</SelectItem>
+                        <SelectItem value="all_gymnasts">All Gymnasts (Parents)</SelectItem>
+                        <SelectItem value="all_gym_admins">All Gym Admins</SelectItem>
+                        <SelectItem value="pending_gymnasts">Pending Gymnasts</SelectItem>
+                        <SelectItem value="approved_gymnasts">Approved Gymnasts</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Template (Optional)</Label>
+                    <Select value={emailForm.template} onValueChange={(value) => {
+                      const template = emailTemplates.find(t => t.id === value);
+                      if (template) {
+                        setEmailForm({
+                          ...emailForm, 
+                          template: value,
+                          subject: template.subject,
+                          message: template.content
+                        });
+                      }
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose template" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {emailTemplates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Subject</Label>
+                    <Input 
+                      value={emailForm.subject}
+                      onChange={(e) => setEmailForm({...emailForm, subject: e.target.value})}
+                      placeholder="Email subject"
+                    />
+                  </div>
+                  <div>
+                    <Label>Message</Label>
+                    <Textarea 
+                      value={emailForm.message}
+                      onChange={(e) => setEmailForm({...emailForm, message: e.target.value})}
+                      placeholder="Your message..."
+                      rows={8}
+                    />
+                  </div>
+                  <Button 
+                    className="w-full" 
+                    onClick={() => sendEmailMutation.mutate(emailForm)}
+                    disabled={!emailForm.to || !emailForm.subject || !emailForm.message}
+                  >
+                    {sendEmailMutation.isPending ? 'Sending...' : 'Send Email'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Email Preview</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="border rounded-lg p-4 space-y-2">
+                    <div><strong>To:</strong> {emailForm.to || 'Select recipients'}</div>
+                    <div><strong>Subject:</strong> {emailForm.subject || 'Enter subject'}</div>
+                    <Separator />
+                    <div className="whitespace-pre-wrap">
+                      {emailForm.message || 'Enter your message...'}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="templates">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Email Templates</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {emailTemplates.map((template) => (
+                      <div key={template.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <h4 className="font-medium">{template.name}</h4>
+                          <p className="text-sm text-gray-600">{template.subject}</p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline">Edit</Button>
+                          <Button size="sm" variant="outline">Use</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Create Template</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Template Name</Label>
+                    <Input placeholder="Template name" />
+                  </div>
+                  <div>
+                    <Label>Subject</Label>
+                    <Input placeholder="Email subject" />
+                  </div>
+                  <div>
+                    <Label>Content</Label>
+                    <Textarea placeholder="Template content..." rows={6} />
+                  </div>
+                  <Button className="w-full">Save Template</Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="history">
+            <Card>
+              <CardHeader>
+                <CardTitle>Email History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {emailHistory.map((email) => (
+                    <div key={email.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h4 className="font-medium">{email.subject}</h4>
+                        <p className="text-sm text-gray-600">
+                          To: {Array.isArray(email.recipients) ? email.recipients.join(', ') : email.recipients}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(email.sentAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant={email.status === 'delivered' ? 'default' : 'secondary'}>
+                          {email.status}
+                        </Badge>
+                        {email.template && (
+                          <p className="text-xs text-gray-500 mt-1">Template: {email.template}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="automation">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Active Automations</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                    <div>
+                      <p className="font-medium">Welcome Email</p>
+                      <p className="text-sm text-gray-600">Sent when new users register</p>
+                    </div>
+                    <Badge variant="secondary">Active</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    <div>
+                      <p className="font-medium">Event Reminders</p>
+                      <p className="text-sm text-gray-600">Sent 7 days before events</p>
+                    </div>
+                    <Badge variant="secondary">Active</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                    <div>
+                      <p className="font-medium">Payment Reminders</p>
+                      <p className="text-sm text-gray-600">Sent when payments are overdue</p>
+                    </div>
+                    <Badge variant="secondary">Active</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Create Automation</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Trigger</Label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select trigger" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user_registration">User Registration</SelectItem>
+                        <SelectItem value="event_registration">Event Registration</SelectItem>
+                        <SelectItem value="payment_due">Payment Due</SelectItem>
+                        <SelectItem value="event_reminder">Event Reminder</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Template</Label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select template" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {emailTemplates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Delay (Optional)</Label>
+                    <Input placeholder="e.g., 7 days, 2 hours" />
+                  </div>
+                  <Button className="w-full">Create Automation</Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
+  };
+
   // Content renderer
   const renderContent = () => {
     switch (selectedTab) {
       case "dashboard":
         return <DashboardContent />;
+      case "gymnasts":
+        return <GymnastManagementContent />;
+      case "emails":
+        return <EmailSystemContent />;
       case "communications":
         return <CommunicationsContent />;
       case "reports":

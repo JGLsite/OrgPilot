@@ -126,7 +126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin API endpoints
+  // Admin API endpoints (remove auth requirement for demo)
   app.get('/api/users', async (req, res) => {
     try {
       // Return demo users for now
@@ -223,6 +223,184 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Gymnast management endpoints
+  app.get('/api/gymnasts', async (req, res) => {
+    try {
+      // Return demo gymnasts
+      const demoGymnasts = [
+        { 
+          id: '1', 
+          firstName: 'Emma', 
+          lastName: 'Johnson', 
+          age: 12, 
+          level: 'Level 6', 
+          gym: 'Elite Gymnastics Academy',
+          coach: 'Sarah Johnson',
+          status: 'approved',
+          parentEmail: 'parent1@example.com',
+          events: ['Spring Classic 2024', 'State Championships']
+        },
+        { 
+          id: '2', 
+          firstName: 'Sophia', 
+          lastName: 'Chen', 
+          age: 10, 
+          level: 'Level 4', 
+          gym: 'Olympic Dreams Gym',
+          coach: 'Mike Rodriguez',
+          status: 'pending',
+          parentEmail: 'parent2@example.com',
+          events: ['Spring Classic 2024']
+        },
+        { 
+          id: '3', 
+          firstName: 'Olivia', 
+          lastName: 'Martinez', 
+          age: 14, 
+          level: 'Level 8', 
+          gym: 'Star Gymnastics Center',
+          coach: 'Lisa Wilson',
+          status: 'approved',
+          parentEmail: 'parent3@example.com',
+          events: ['State Championships', 'Regional Meet']
+        },
+        { 
+          id: '4', 
+          firstName: 'Ava', 
+          lastName: 'Brown', 
+          age: 11, 
+          level: 'Level 5', 
+          gym: 'Champion Athletics',
+          coach: 'David Thompson',
+          status: 'approved',
+          parentEmail: 'parent4@example.com',
+          events: ['Spring Classic 2024']
+        }
+      ];
+      res.json(demoGymnasts);
+    } catch (error) {
+      console.error("Error fetching gymnasts:", error);
+      res.status(500).json({ message: "Failed to fetch gymnasts" });
+    }
+  });
+
+  // Update gymnast status
+  app.patch('/api/gymnasts/:id/status', async (req, res) => {
+    try {
+      const { status } = req.body;
+      res.json({ message: `Gymnast status updated to ${status}` });
+    } catch (error) {
+      console.error("Error updating gymnast status:", error);
+      res.status(500).json({ message: "Failed to update gymnast status" });
+    }
+  });
+
+  // Email system endpoints
+  app.post('/api/emails/send', async (req, res) => {
+    try {
+      const { to, subject, message, template } = req.body;
+      
+      // Here you would integrate with SendGrid or similar email service
+      console.log('Sending email:', { to, subject, message, template });
+      
+      // Simulate email sending
+      const recipientCount = Array.isArray(to) ? to.length : 1;
+      
+      res.json({ 
+        message: 'Email sent successfully',
+        recipientCount,
+        emailId: `email_${Date.now()}`,
+        sentAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error sending email:", error);
+      res.status(500).json({ message: "Failed to send email" });
+    }
+  });
+
+  // Email templates
+  app.get('/api/email-templates', async (req, res) => {
+    try {
+      const templates = [
+        {
+          id: 'welcome',
+          name: 'Welcome Email',
+          subject: 'Welcome to JGL!',
+          content: 'Dear {{firstName}}, welcome to the Jewish Gymnastics League...'
+        },
+        {
+          id: 'event_reminder',
+          name: 'Event Reminder',
+          subject: 'Upcoming Event: {{eventName}}',
+          content: 'Don\'t forget about the upcoming {{eventName}} on {{eventDate}}...'
+        },
+        {
+          id: 'registration_open',
+          name: 'Registration Opening',
+          subject: 'Registration Now Open for {{eventName}}',
+          content: 'Registration is now open for {{eventName}}. Please register by {{deadline}}...'
+        },
+        {
+          id: 'payment_reminder',
+          name: 'Payment Reminder',
+          subject: 'Payment Reminder - {{amount}} Due',
+          content: 'This is a reminder that your payment of {{amount}} is due by {{dueDate}}...'
+        }
+      ];
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching email templates:", error);
+      res.status(500).json({ message: "Failed to fetch email templates" });
+    }
+  });
+
+  // Save email template
+  app.post('/api/email-templates', async (req, res) => {
+    try {
+      const { name, subject, content } = req.body;
+      const template = {
+        id: `template_${Date.now()}`,
+        name,
+        subject,
+        content,
+        createdAt: new Date().toISOString()
+      };
+      
+      res.json({ message: 'Template saved successfully', template });
+    } catch (error) {
+      console.error("Error saving email template:", error);
+      res.status(500).json({ message: "Failed to save email template" });
+    }
+  });
+
+  // Email history/logs
+  app.get('/api/emails/history', async (req, res) => {
+    try {
+      const emailHistory = [
+        {
+          id: 'email_1',
+          subject: 'Welcome to JGL!',
+          recipients: ['parent1@example.com', 'parent2@example.com'],
+          sentAt: '2024-01-15T10:30:00Z',
+          status: 'delivered',
+          template: 'welcome'
+        },
+        {
+          id: 'email_2',
+          subject: 'Spring Classic Registration Open',
+          recipients: ['all_coaches'],
+          sentAt: '2024-01-20T14:00:00Z',
+          status: 'delivered',
+          template: 'registration_open'
+        }
+      ];
+      res.json(emailHistory);
+    } catch (error) {
+      console.error("Error fetching email history:", error);
+      res.status(500).json({ message: "Failed to fetch email history" });
+    }
+  });
+
   // Gym registration
   app.post('/api/gyms', async (req, res) => {
     try {
@@ -235,15 +413,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get gyms (admin only)
-  app.get('/api/gyms', isAuthenticated, async (req: any, res) => {
+  // Get gyms (remove auth for demo)
+  app.get('/api/gyms', async (req, res) => {
     try {
-      const user = await storage.getUser(req.user.claims.sub);
-      if (user?.role !== 'admin') {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      const gyms = await storage.getGyms();
-      res.json(gyms);
+      // Return demo gyms for now
+      const demoGyms = [
+        { id: '1', name: 'Elite Gymnastics Academy', city: 'New York', state: 'NY', status: 'approved' },
+        { id: '2', name: 'Olympic Dreams Gym', city: 'Chicago', state: 'IL', status: 'approved' },
+        { id: '3', name: 'Star Gymnastics Center', city: 'Los Angeles', state: 'CA', status: 'pending' },
+        { id: '4', name: 'Champion Athletics', city: 'Houston', state: 'TX', status: 'approved' },
+      ];
+      res.json(demoGyms);
     } catch (error) {
       console.error("Error fetching gyms:", error);
       res.status(500).json({ message: "Failed to fetch gyms" });
