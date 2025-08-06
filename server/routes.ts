@@ -884,12 +884,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user || user.role !== 'admin') {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const newUser = await storage.createUser(req.body);
       res.status(201).json(newUser);
     } catch (error) {
       console.error("Error creating user:", error);
       res.status(400).json({ message: "Failed to create user" });
+    }
+  });
+
+  app.patch('/api/users/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updatedUser = await storage.updateUser(req.params.id, req.body);
+      res.json(updatedUser);
+    } catch (error: any) {
+      console.error("Error updating user:", error);
+      res.status(400).json({ message: error.message || "Failed to update user" });
     }
   });
 
