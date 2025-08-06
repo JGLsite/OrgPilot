@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,28 +18,36 @@ import { RosterUploader } from '@/components/RosterUploader';
 
 export default function CoachDashboard() {
   const { toast } = useToast();
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth() as any;
   const queryClient = useQueryClient();
-  const [selectedGymnast, setSelectedGymnast] = useState<string>('');
+  const [editingGymnast, setEditingGymnast] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', level: '' });
+  const [challengeDialogOpen, setChallengeDialogOpen] = useState(false);
+  const [challengeForm, setChallengeForm] = useState({ title: '', level: '', points: '', description: '' });
 
   // Fetch coach data
-  const { data: profile } = useQuery({
+  const { data: profile } = useQuery<any>({
     queryKey: ['/api/profile'],
     enabled: isAuthenticated && user?.role === 'coach',
   });
 
-  const { data: gymnasts, isLoading: gymnastLoading } = useQuery({
+  const { data: gymnasts } = useQuery<any>({
     queryKey: ['/api/gyms', profile?.gyms?.[0]?.id, 'gymnasts'],
     enabled: !!profile?.gyms?.[0]?.id,
   });
 
-  const { data: challenges } = useQuery({
+  const { data: challenges } = useQuery<any>({
     queryKey: ['/api/challenges'],
     enabled: isAuthenticated,
   });
 
-  const { data: leaderboard } = useQuery({
+  const { data: leaderboard } = useQuery<any>({
     queryKey: ['/api/leaderboard', 'individual'],
+    enabled: isAuthenticated,
+  });
+
+  const { data: events } = useQuery<any>({
+    queryKey: ['/api/events'],
     enabled: isAuthenticated,
   });
 
@@ -85,6 +93,40 @@ export default function CoachDashboard() {
         title: "Challenge Created",
         description: "New challenge has been created successfully.",
       });
+      setChallengeDialogOpen(false);
+      setChallengeForm({ title: '', level: '', points: '', description: '' });
+    },
+  });
+
+  const updateGymnastMutation = useMutation({
+    mutationFn: async ({ id, data }: any) => {
+      await apiRequest('PATCH', `/api/gymnasts/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/gyms'] });
+      toast({
+        title: "Gymnast Updated",
+        description: "Gymnast details updated successfully.",
+      });
+      setEditingGymnast(null);
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -125,6 +167,7 @@ export default function CoachDashboard() {
   const currentGym = profile?.gyms?.[0];
   const approvedGymnasts = gymnasts?.filter((g: any) => g.approved) || [];
   const pendingGymnasts = gymnasts?.filter((g: any) => !g.approved) || [];
+  const upcomingEvents = events?.filter((e: any) => new Date(e.date) > new Date()) || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -218,6 +261,7 @@ export default function CoachDashboard() {
             <TabsTrigger value="roster">Roster Upload</TabsTrigger>
             <TabsTrigger value="challenges">Challenges</TabsTrigger>
             <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+            <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
@@ -290,7 +334,23 @@ export default function CoachDashboard() {
                               <p className="text-sm text-gray-600">Level {gymnast.level} • {gymnast.points} points</p>
                             </div>
                           </div>
-                          <Badge variant="default">Active</Badge>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="default">Active</Badge>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingGymnast(gymnast);
+                                setEditForm({
+                                  firstName: gymnast.firstName,
+                                  lastName: gymnast.lastName,
+                                  level: gymnast.level,
+                                });
+                              }}
+                            >
+                              Edit
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -328,7 +388,7 @@ export default function CoachDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span>Skill Challenges</span>
-                  <Dialog>
+                  <Dialog open={challengeDialogOpen} onOpenChange={setChallengeDialogOpen}>
                     <DialogTrigger asChild>
                       <Button>
                         <i className="fas fa-plus mr-2"></i>
@@ -342,11 +402,18 @@ export default function CoachDashboard() {
                       <div className="space-y-4">
                         <div>
                           <Label>Challenge Name</Label>
-                          <Input placeholder="Perfect Back Handspring" />
+                          <Input
+                            value={challengeForm.title}
+                            onChange={(e) => setChallengeForm({ ...challengeForm, title: e.target.value })}
+                            placeholder="Perfect Back Handspring"
+                          />
                         </div>
                         <div>
                           <Label>Target Level</Label>
-                          <Select>
+                          <Select
+                            value={challengeForm.level}
+                            onValueChange={(value) => setChallengeForm({ ...challengeForm, level: value })}
+                          >
                             <SelectTrigger>
                               <SelectValue placeholder="Select level" />
                             </SelectTrigger>
@@ -364,14 +431,39 @@ export default function CoachDashboard() {
                         </div>
                         <div>
                           <Label>Point Reward</Label>
-                          <Input type="number" placeholder="50" />
+                          <Input
+                            type="number"
+                            value={challengeForm.points}
+                            onChange={(e) => setChallengeForm({ ...challengeForm, points: e.target.value })}
+                            placeholder="50"
+                          />
                         </div>
                         <div>
                           <Label>Description</Label>
-                          <Textarea placeholder="Complete 5 consecutive back handsprings with perfect form..." />
+                          <Textarea
+                            value={challengeForm.description}
+                            onChange={(e) => setChallengeForm({ ...challengeForm, description: e.target.value })}
+                            placeholder="Complete 5 consecutive back handsprings with perfect form..."
+                          />
                         </div>
-                        <Button className="w-full">Create Challenge</Button>
                       </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setChallengeDialogOpen(false)}>Cancel</Button>
+                        <Button
+                          onClick={() =>
+                            createChallengeMutation.mutate({
+                              title: challengeForm.title,
+                              description: challengeForm.description,
+                              points: parseInt(challengeForm.points),
+                              levels: challengeForm.level ? [challengeForm.level] : [],
+                              fromGymId: currentGym?.id,
+                            })
+                          }
+                          disabled={createChallengeMutation.isPending}
+                        >
+                          Create Challenge
+                        </Button>
+                      </DialogFooter>
                     </DialogContent>
                   </Dialog>
                 </CardTitle>
@@ -382,10 +474,12 @@ export default function CoachDashboard() {
                     {challenges.map((challenge: any) => (
                       <div key={challenge.id} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold">{challenge.name}</h4>
+                          <h4 className="font-semibold">{challenge.title}</h4>
                           <div className="flex items-center space-x-2">
-                            <Badge variant="outline">Level {challenge.targetLevel}</Badge>
-                            <Badge>{challenge.pointReward} points</Badge>
+                            {challenge.levels && challenge.levels.length > 0 && (
+                              <Badge variant="outline">Level {challenge.levels.join(', ')}</Badge>
+                            )}
+                            <Badge>{challenge.points} points</Badge>
                           </div>
                         </div>
                         <p className="text-sm text-gray-600">{challenge.description}</p>
@@ -445,6 +539,33 @@ export default function CoachDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+          <TabsContent value="events">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <i className="fas fa-calendar-alt mr-2 text-jgl-teal"></i>
+                  Upcoming Events
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {upcomingEvents.length > 0 ? (
+                  <div className="space-y-3">
+                    {upcomingEvents.map((event: any) => (
+                      <div key={event.id} className="p-3 border rounded-lg">
+                        <h4 className="font-semibold">{event.name}</h4>
+                        <p className="text-sm text-gray-600">{new Date(event.date).toLocaleDateString()} • {event.location}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <i className="fas fa-calendar-times text-4xl mb-4"></i>
+                    <p>No upcoming events</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="reports">
             <Card>
@@ -460,6 +581,52 @@ export default function CoachDashboard() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <Dialog open={!!editingGymnast} onOpenChange={(open) => { if (!open) setEditingGymnast(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Gymnast</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>First Name</Label>
+                <Input
+                  value={editForm.firstName}
+                  onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Last Name</Label>
+                <Input
+                  value={editForm.lastName}
+                  onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Level</Label>
+                <Select value={editForm.level} onValueChange={(value) => setEditForm({ ...editForm, level: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['3','4','5','6','7','8','9','10'].map(level => (
+                      <SelectItem key={level} value={level}>Level {level}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingGymnast(null)}>Cancel</Button>
+              <Button
+                onClick={() => updateGymnastMutation.mutate({ id: editingGymnast.id, data: editForm })}
+                disabled={updateGymnastMutation.isPending}
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
