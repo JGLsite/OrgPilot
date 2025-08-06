@@ -2452,9 +2452,52 @@ export default function AdminDashboard() {
                     <div>
                       <Label className="font-semibold">Current Stats</Label>
                       <div className="mt-2 space-y-2">
-                        <p><strong>Active Coaches:</strong> {selectedGym.activeCoaches}</p>
-                        <p><strong>Active Gymnasts:</strong> {selectedGym.activeGymnasts}</p>
+                        <p><strong>Active Coaches:</strong> {users.filter(u => u.role === 'coach' && u.gymId === selectedGym.id).length}</p>
+                        <p><strong>Active Gymnasts:</strong> {gymnasts.filter(g => g.gymId === selectedGym.id && g.approved).length}</p>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Show actual coaches and gymnasts for this gym */}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="font-semibold">Active Coaches</Label>
+                    <div className="mt-2">
+                      {users.filter(u => u.role === 'coach' && u.gymId === selectedGym.id).length > 0 ? (
+                        <div className="space-y-1">
+                          {users.filter(u => u.role === 'coach' && u.gymId === selectedGym.id).map(coach => (
+                            <div key={coach.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                              <span>{coach.firstName} {coach.lastName}</span>
+                              <span className="text-sm text-gray-500">{coach.email}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 italic">No coaches registered</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label className="font-semibold">Active Gymnasts</Label>
+                    <div className="mt-2">
+                      {gymnasts.filter(g => g.gymId === selectedGym.id && g.approved).length > 0 ? (
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {gymnasts.filter(g => g.gymId === selectedGym.id && g.approved).map(gymnast => (
+                            <div key={gymnast.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                              <span>{gymnast.firstName} {gymnast.lastName}</span>
+                              <div className="text-sm text-gray-500">
+                                Level {gymnast.level} • {gymnast.type}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 italic">No approved gymnasts</p>
+                      )}
                     </div>
                   </div>
                 </div>
