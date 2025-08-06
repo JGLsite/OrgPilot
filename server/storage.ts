@@ -52,6 +52,10 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   updateUserRole(userId: string, role: string): Promise<User>;
+  updateUser(
+    userId: string,
+    updates: Partial<Pick<User, "firstName" | "lastName" | "email" | "role">>,
+  ): Promise<User>;
   
   // Gym operations
   createGym(gym: InsertGym): Promise<Gym>;
@@ -178,10 +182,41 @@ export class DatabaseStorage implements IStorage {
   async updateUserRole(userId: string, role: string): Promise<User> {
     const validRoles = ['admin', 'gym_admin', 'coach', 'gymnast', 'spectator'] as const;
     const roleValue = validRoles.includes(role as any) ? role as any : 'spectator';
-    
+
     const [user] = await db
       .update(users)
       .set({ role: roleValue, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async updateUser(
+    userId: string,
+    updates: Partial<Pick<User, "firstName" | "lastName" | "email" | "role">>,
+  ): Promise<User> {
+    if (updates.email) {
+      const existingUser = await this.getUserByEmail(updates.email);
+      if (existingUser && existingUser.id !== userId) {
+        throw new Error(`An account with email ${updates.email} already exists`);
+      }
+      const existingGym = await this.getGymByEmail(updates.email);
+      if (existingGym) {
+        throw new Error(
+          `An account with email ${updates.email} is already registered as a gym admin`,
+        );
+      }
+    }
+
+    const validRoles = ['admin', 'gym_admin', 'coach', 'gymnast', 'spectator'] as const;
+    const updateData: any = { ...updates, updatedAt: new Date() };
+    if (updates.role && !validRoles.includes(updates.role as any)) {
+      updateData.role = 'spectator';
+    }
+
+    const [user] = await db
+      .update(users)
+      .set(updateData)
       .where(eq(users.id, userId))
       .returning();
     return user;

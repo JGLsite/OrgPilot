@@ -127,15 +127,15 @@ export default function AdminDashboard() {
   });
 
   const updateMemberMutation = useMutation({
-    mutationFn: async ({ id, role }: { id: string; role: string }) => {
-      return apiRequest('PATCH', `/api/users/${id}/role`, { role });
+    mutationFn: async ({ id, ...updates }: { id: string; firstName: string; lastName: string; email: string; role: string }) => {
+      return apiRequest('PATCH', `/api/users/${id}`, updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
-      toast({ title: "Member role updated successfully" });
+      toast({ title: "Member updated successfully" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: "Failed to update member role", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to update member", variant: "destructive" });
     }
   });
 
@@ -2789,17 +2789,35 @@ export default function AdminDashboard() {
                   <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
                     {user.role}
                   </Badge>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="outline"
                     onClick={() => {
-                      const newRole = prompt('Enter new role (admin, coach, gym_admin, gymnast, spectator):');
-                      if (newRole && ['admin', 'coach', 'gym_admin', 'gymnast', 'spectator'].includes(newRole)) {
-                        updateMemberMutation.mutate({ id: user.id, role: newRole });
+                      const firstName = prompt('First Name', user.firstName || '') || '';
+                      const lastName = prompt('Last Name', user.lastName || '') || '';
+                      const email = prompt('Email', user.email || '') || '';
+                      const role = prompt(
+                        'Role (admin, coach, gym_admin, gymnast, spectator):',
+                        user.role,
+                      ) || '';
+                      if (
+                        firstName &&
+                        lastName &&
+                        email &&
+                        role &&
+                        ['admin', 'coach', 'gym_admin', 'gymnast', 'spectator'].includes(role)
+                      ) {
+                        updateMemberMutation.mutate({
+                          id: user.id,
+                          firstName,
+                          lastName,
+                          email,
+                          role,
+                        });
                       }
                     }}
                   >
-                    Edit Role
+                    Edit
                   </Button>
                   <Button 
                     size="sm" 
