@@ -1720,34 +1720,70 @@ export default function AdminDashboard() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label>Age</Label>
-                        <Input value={selectedGymnast.age} readOnly />
+                        <Label>Birth Date</Label>
+                        <Input value={new Date(selectedGymnast.birthDate).toLocaleDateString()} readOnly />
                       </div>
                       <div>
                         <Label>Level</Label>
                         <Input value={selectedGymnast.level} readOnly />
                       </div>
                     </div>
-                    <div>
-                      <Label>Gym</Label>
-                      <Input value={selectedGymnast.gym} readOnly />
-                    </div>
-                    <div>
-                      <Label>Coach</Label>
-                      <Input value={selectedGymnast.coach} readOnly />
-                    </div>
-                    <div>
-                      <Label>Parent Email</Label>
-                      <Input value={selectedGymnast.parentEmail} readOnly />
-                    </div>
-                    <div>
-                      <Label>Events</Label>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {selectedGymnast.events?.map((event, index) => (
-                          <Badge key={index} variant="outline">{event}</Badge>
-                        ))}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Type</Label>
+                        <Input value={selectedGymnast.type} readOnly />
+                      </div>
+                      <div>
+                        <Label>Status</Label>
+                        <Input value={selectedGymnast.approved ? 'Approved' : 'Pending'} readOnly />
                       </div>
                     </div>
+                    <div>
+                      <Label>Gym</Label>
+                      <Input value={getGymName(selectedGymnast.gymId)} readOnly />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Parent Name</Label>
+                        <Input value={`${selectedGymnast.parentFirstName} ${selectedGymnast.parentLastName}`} readOnly />
+                      </div>
+                      <div>
+                        <Label>Parent Email</Label>
+                        <Input value={selectedGymnast.parentEmail} readOnly />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Parent Phone</Label>
+                        <Input value={selectedGymnast.parentPhone || 'Not provided'} readOnly />
+                      </div>
+                      <div>
+                        <Label>Points</Label>
+                        <Input value={selectedGymnast.points || 0} readOnly />
+                      </div>
+                    </div>
+                    {selectedGymnast.emergencyContact && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Emergency Contact</Label>
+                          <Input value={selectedGymnast.emergencyContact} readOnly />
+                        </div>
+                        <div>
+                          <Label>Emergency Phone</Label>
+                          <Input value={selectedGymnast.emergencyPhone || 'Not provided'} readOnly />
+                        </div>
+                      </div>
+                    )}
+                    {selectedGymnast.medicalInfo && (
+                      <div>
+                        <Label>Medical Information</Label>
+                        <textarea 
+                          className="w-full p-2 border rounded min-h-[100px] resize-none bg-gray-50" 
+                          value={selectedGymnast.medicalInfo} 
+                          readOnly 
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-4">
