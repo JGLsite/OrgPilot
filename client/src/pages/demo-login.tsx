@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,42 +7,51 @@ import { apiRequest } from '@/lib/queryClient';
 export default function DemoLogin() {
   const { toast } = useToast();
 
+  const demoLoginMutation = useMutation({
+    mutationFn: async (role: string) => {
+      const response = await apiRequest('POST', '/api/demo-login', { role });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const { user } = data;
+      localStorage.setItem('demo-user', JSON.stringify(user));
+
+      toast({
+        title: "Demo Login Successful!",
+        description: `Logged in as ${user.firstName} ${user.lastName} (${user.role})`,
+      });
+
+      // Redirect based on role
+      setTimeout(() => {
+        switch (user.role) {
+          case 'admin':
+            window.location.href = '/admin-dashboard';
+            break;
+          case 'gym_admin':
+            window.location.href = '/gym-dashboard';
+            break;
+          case 'coach':
+            window.location.href = '/coach-dashboard';
+            break;
+          case 'gymnast':
+            window.location.href = '/gymnast-dashboard';
+            break;
+          default:
+            window.location.href = '/';
+        }
+      }, 1000);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleDemoLogin = (role: string) => {
-    // Store demo user in localStorage for simple demo purposes
-    const demoUser = {
-      id: `demo-${role}-${Date.now()}`,
-      email: `${role}@jgl.demo`,
-      firstName: 'Demo',
-      lastName: role.charAt(0).toUpperCase() + role.slice(1),
-      role: role,
-    };
-    
-    localStorage.setItem('demo-user', JSON.stringify(demoUser));
-    
-    toast({
-      title: "Demo Login Successful!",
-      description: `Logged in as ${demoUser.firstName} ${demoUser.lastName} (${demoUser.role})`,
-    });
-    
-    // Redirect based on role
-    setTimeout(() => {
-      switch (role) {
-        case 'admin':
-          window.location.href = '/admin-dashboard';
-          break;
-        case 'gym_admin':
-          window.location.href = '/gym-dashboard';
-          break;
-        case 'coach':
-          window.location.href = '/coach-dashboard';
-          break;
-        case 'gymnast':
-          window.location.href = '/gymnast-dashboard';
-          break;
-        default:
-          window.location.href = '/';
-      }
-    }, 1000);
+    demoLoginMutation.mutate(role);
   };
 
   return (
