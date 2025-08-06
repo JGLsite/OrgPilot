@@ -249,66 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Gymnast management endpoints
-  app.get('/api/gymnasts', async (req, res) => {
-    try {
-      // Return demo gymnasts
-      const demoGymnasts = [
-        { 
-          id: '1', 
-          firstName: 'Emma', 
-          lastName: 'Johnson', 
-          age: 12, 
-          level: 'Level 6', 
-          gym: 'Elite Gymnastics Academy',
-          coach: 'Sarah Johnson',
-          status: 'approved',
-          parentEmail: 'parent1@example.com',
-          events: ['Spring Classic 2024', 'State Championships']
-        },
-        { 
-          id: '2', 
-          firstName: 'Sophia', 
-          lastName: 'Chen', 
-          age: 10, 
-          level: 'Level 4', 
-          gym: 'Olympic Dreams Gym',
-          coach: 'Mike Rodriguez',
-          status: 'pending',
-          parentEmail: 'parent2@example.com',
-          events: ['Spring Classic 2024']
-        },
-        { 
-          id: '3', 
-          firstName: 'Olivia', 
-          lastName: 'Martinez', 
-          age: 14, 
-          level: 'Level 8', 
-          gym: 'Star Gymnastics Center',
-          coach: 'Lisa Wilson',
-          status: 'approved',
-          parentEmail: 'parent3@example.com',
-          events: ['State Championships', 'Regional Meet']
-        },
-        { 
-          id: '4', 
-          firstName: 'Ava', 
-          lastName: 'Brown', 
-          age: 11, 
-          level: 'Level 5', 
-          gym: 'Champion Athletics',
-          coach: 'David Thompson',
-          status: 'approved',
-          parentEmail: 'parent4@example.com',
-          events: ['Spring Classic 2024']
-        }
-      ];
-      res.json(demoGymnasts);
-    } catch (error) {
-      console.error("Error fetching gymnasts:", error);
-      res.status(500).json({ message: "Failed to fetch gymnasts" });
-    }
-  });
+  // Gymnast management endpoints - removed mock data endpoint
 
   // Update gymnast status
   app.patch('/api/gymnasts/:id/status', async (req, res) => {
@@ -1138,7 +1079,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Approve the request
       const approvedRequest = await storage.approveRegistrationRequest(req.params.id, adminUserId);
       
-      // Create gymnast account
+      // Create gymnast account (automatically approved since admin is approving)
       const newGymnast = await storage.createGymnast({
         gymId: request.gymId,
         firstName: request.firstName,
@@ -1153,7 +1094,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parentPhone: request.parentPhone,
         emergencyContact: request.emergencyContact,
         emergencyPhone: request.emergencyPhone,
-        medicalInfo: request.medicalInfo
+        medicalInfo: request.medicalInfo,
+        approved: true
       });
 
       res.json({ 
