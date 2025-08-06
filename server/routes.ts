@@ -575,6 +575,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update gymnast details
+  app.patch('/api/gymnasts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.claims.sub);
+      if (!user || (user.role !== 'admin' && user.role !== 'coach' && user.role !== 'gym_admin')) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const updates = insertGymnastSchema.partial().parse(req.body);
+      const gymnast = await storage.updateGymnast(req.params.id, updates);
+      res.json(gymnast);
+    } catch (error) {
+      console.error("Error updating gymnast:", error);
+      res.status(500).json({ message: "Failed to update gymnast" });
+    }
+  });
+
   // Event creation (gym admins only)
   app.post('/api/events', isAuthenticated, async (req: any, res) => {
     try {

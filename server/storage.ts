@@ -69,6 +69,7 @@ export interface IStorage {
   getAllGymnasts(): Promise<Gymnast[]>;
   updateGymnastApproval(id: string, approved: boolean): Promise<Gymnast>;
   updateGymnastPoints(id: string, points: number): Promise<Gymnast>;
+  updateGymnast(id: string, updates: Partial<InsertGymnast>): Promise<Gymnast>;
   
   // Event operations
   createEvent(event: InsertEvent): Promise<Event>;
@@ -300,6 +301,15 @@ export class DatabaseStorage implements IStorage {
     const [gymnast] = await db
       .update(gymnasts)
       .set({ points, updatedAt: new Date() })
+      .where(eq(gymnasts.id, id))
+      .returning();
+    return gymnast;
+  }
+
+  async updateGymnast(id: string, updates: Partial<InsertGymnast>): Promise<Gymnast> {
+    const [gymnast] = await db
+      .update(gymnasts)
+      .set({ ...updates, updatedAt: new Date() })
       .where(eq(gymnasts.id, id))
       .returning();
     return gymnast;
