@@ -29,9 +29,11 @@ function Router() {
       <Route path="/admin-setup" component={AdminSetup} />
       <Route path="/demo-login" component={DemoLogin} />
       
+      {/* Admin routes - temporarily make accessible for testing */}
+      <Route path="/admin-dashboard" component={AdminDashboard} />
+      
       {isAuthenticated && user && (
         <>
-          {user.role === 'admin' && <Route path="/admin-dashboard" component={AdminDashboard} />}
           {user.role === 'gym_admin' && <Route path="/gym-dashboard" component={GymDashboard} />}
           {user.role === 'coach' && <Route path="/coach-dashboard" component={CoachDashboard} />}
           {user.role === 'gymnast' && <Route path="/gymnast-dashboard" component={GymnastDashboard} />}

@@ -77,6 +77,14 @@ export default function AdminDashboard() {
     retry: false,
   });
 
+  // Add registration requests query
+  const { data: registrationRequests = [], isLoading: requestsLoading } = useQuery<any[]>({
+    queryKey: ['/api/registration-requests/all'],
+    retry: false,
+  });
+
+
+
   // Mutations for various operations
   const approveGymMutation = useMutation({
     mutationFn: async ({ id, approved }: { id: string; approved: boolean }) => {
@@ -284,6 +292,12 @@ export default function AdminDashboard() {
             label="Gymnasts" 
             active={selectedTab === "gymnasts"}
             onClick={() => setSelectedTab("gymnasts")}
+          />
+          <SidebarItem 
+            icon="📝" 
+            label="Registration Requests" 
+            active={selectedTab === "registrations"}
+            onClick={() => setSelectedTab("registrations")}
           />
           <SidebarItem 
             icon="✉️" 
@@ -2435,6 +2449,121 @@ export default function AdminDashboard() {
     );
   };
 
+  // Registration Requests Content
+  const RegistrationRequestsContent = () => {
+    const approveRequestMutation = useMutation({
+      mutationFn: async (requestId: string) => {
+        return apiRequest("POST", `/api/registration-requests/${requestId}/approve-test`);
+      },
+      onSuccess: async (response) => {
+        const data = await response.json();
+        queryClient.invalidateQueries({ queryKey: ["/api/registration-requests/all"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/gymnasts"] });
+        toast({
+          title: "Registration Approved!",
+          description: `${data.gymnast.firstName} ${data.gymnast.lastName} has been added to the gym and will receive a welcome email.`,
+          variant: "default",
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "Error",
+          description: "Failed to approve registration request",
+          variant: "destructive",
+        });
+      }
+    });
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Registration Requests</h2>
+          <p className="text-gray-600">Review and approve gymnast registration requests</p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Pending Requests ({registrationRequests.filter(r => r.status === 'pending').length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {registrationRequests.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600">No registration requests found.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {registrationRequests.map((request) => (
+                  <div key={request.id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <h3 className="font-semibold text-lg">{request.firstName} {request.lastName}</h3>
+                          <Badge variant={request.status === 'pending' ? 'secondary' : request.status === 'approved' ? 'default' : 'destructive'}>
+                            {request.status}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+                          <div>
+                            <span className="font-medium">Email:</span> {request.email || 'Not provided'}
+                          </div>
+                          <div>
+                            <span className="font-medium">Level:</span> {request.level}
+                          </div>
+                          <div>
+                            <span className="font-medium">Type:</span> {request.type}
+                          </div>
+                          <div>
+                            <span className="font-medium">Birth Date:</span> {new Date(request.birthDate).toLocaleDateString()}
+                          </div>
+                          <div className="col-span-2">
+                            <span className="font-medium">Parent:</span> {request.parentFirstName} {request.parentLastName}
+                          </div>
+                          <div>
+                            <span className="font-medium">Parent Email:</span> {request.parentEmail}
+                          </div>
+                          <div>
+                            <span className="font-medium">Parent Phone:</span> {request.parentPhone}
+                          </div>
+                          <div className="col-span-2">
+                            <span className="font-medium">Emergency Contact:</span> {request.emergencyContact} ({request.emergencyPhone})
+                          </div>
+                          {request.medicalInfo && (
+                            <div className="col-span-2">
+                              <span className="font-medium">Medical Info:</span> {request.medicalInfo}
+                            </div>
+                          )}
+                          <div>
+                            <span className="font-medium">Submitted:</span> {new Date(request.createdAt).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2 ml-4">
+                        {request.status === 'pending' && (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => approveRequestMutation.mutate(request.id)}
+                              disabled={approveRequestMutation.isPending}
+                            >
+                              {approveRequestMutation.isPending ? 'Approving...' : 'Approve'}
+                            </Button>
+                            <Button size="sm" variant="outline">
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
   // Content renderer
   const renderContent = () => {
     switch (selectedTab) {
@@ -2442,6 +2571,8 @@ export default function AdminDashboard() {
         return <DashboardContent />;
       case "gymnasts":
         return <GymnastManagementContent />;
+      case "registrations":
+        return <RegistrationRequestsContent />;
       case "emails":
         return <EmailSystemContent />;
       case "communications":
