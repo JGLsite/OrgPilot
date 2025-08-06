@@ -1296,6 +1296,12 @@ export default function AdminDashboard() {
   const GymnastManagementContent = () => {
     const [selectedGymnast, setSelectedGymnast] = useState<any>(null);
     const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+
+    // Helper function to get gym name from gymId
+    const getGymName = (gymId: string) => {
+      const gym = gyms.find(g => g.id === gymId);
+      return gym ? `${gym.name} (${gym.city})` : 'Unknown Gym';
+    };
     const [registrationForm, setRegistrationForm] = useState({
       firstName: '',
       lastName: '',
@@ -1313,12 +1319,12 @@ export default function AdminDashboard() {
     });
     
     const updateGymnastStatus = useMutation({
-      mutationFn: async ({ id, status }: { id: string; status: string }) => {
-        const response = await apiRequest('PATCH', `/api/gymnasts/${id}/status`, { status });
+      mutationFn: async ({ id, approved }: { id: string; approved: boolean }) => {
+        const response = await apiRequest('PATCH', `/api/gymnasts/${id}/approve`, { approved });
         return response.json();
       },
       onSuccess: () => {
-        toast({ title: "Success", description: "Gymnast status updated successfully" });
+        toast({ title: "Success", description: "Gymnast approval updated successfully" });
         queryClient.invalidateQueries({ queryKey: ['/api/gymnasts'] });
       },
     });
@@ -1368,7 +1374,7 @@ export default function AdminDashboard() {
           <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-green-600">
-                {gymnasts.filter(g => g.status === 'approved').length}
+                {gymnasts.filter(g => g.approved === true).length}
               </div>
               <div className="text-sm text-gray-600">Approved</div>
             </CardContent>
@@ -1376,7 +1382,7 @@ export default function AdminDashboard() {
           <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-yellow-600">
-                {gymnasts.filter(g => g.status === 'pending').length}
+                {gymnasts.filter(g => g.approved === false).length}
               </div>
               <div className="text-sm text-gray-600">Pending</div>
             </CardContent>
@@ -1384,7 +1390,7 @@ export default function AdminDashboard() {
           <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-purple-600">
-                {new Set(gymnasts.map(g => g.gym)).size}
+                {new Set(gymnasts.map(g => g.gymId)).size}
               </div>
               <div className="text-sm text-gray-600">Gyms</div>
             </CardContent>
@@ -1405,14 +1411,16 @@ export default function AdminDashboard() {
                       <div className="flex-1">
                         <h3 className="font-semibold">{gymnast.firstName} {gymnast.lastName}</h3>
                         <p className="text-sm text-gray-600">
-                          Age {gymnast.age} • {gymnast.level} • {gymnast.gym}
+                          Level {gymnast.level} • Type: {gymnast.type} • Birth: {new Date(gymnast.birthDate).toLocaleDateString()}
                         </p>
-                        <p className="text-xs text-gray-500">Coach: {gymnast.coach}</p>
+                        <p className="text-xs text-gray-500">
+                          Gym: {getGymName(gymnast.gymId)} • Parent: {gymnast.parentFirstName} {gymnast.parentLastName}
+                        </p>
                       </div>
                       <div className="text-right">
                         <div className="mb-1">
-                          <Badge variant={gymnast.status === 'approved' ? 'default' : 'secondary'}>
-                            {gymnast.status}
+                          <Badge variant={gymnast.approved ? 'default' : 'secondary'}>
+                            {gymnast.approved ? 'approved' : 'pending'}
                           </Badge>
                         </div>
                         <p className="text-xs text-gray-500">{gymnast.parentEmail}</p>
@@ -1427,10 +1435,10 @@ export default function AdminDashboard() {
                     >
                       View Details
                     </Button>
-                    {gymnast.status === 'pending' && (
+                    {!gymnast.approved && (
                       <Button 
                         size="sm"
-                        onClick={() => updateGymnastStatus.mutate({ id: gymnast.id, status: 'approved' })}
+                        onClick={() => updateGymnastStatus.mutate({ id: gymnast.id, approved: true })}
                       >
                         Approve
                       </Button>
