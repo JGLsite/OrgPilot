@@ -599,9 +599,34 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(registrationRequests.createdAt));
   }
 
-  async getAllRegistrationRequests(): Promise<RegistrationRequest[]> {
-    return db.select().from(registrationRequests)
-      .orderBy(desc(registrationRequests.createdAt));
+  async getAllRegistrationRequests(): Promise<any[]> {
+    return db.select({
+      id: registrationRequests.id,
+      gymId: registrationRequests.gymId,
+      gymName: gyms.name,
+      gymCity: gyms.city,
+      firstName: registrationRequests.firstName,
+      lastName: registrationRequests.lastName,
+      email: registrationRequests.email,
+      birthDate: registrationRequests.birthDate,
+      level: registrationRequests.level,
+      type: registrationRequests.type,
+      parentFirstName: registrationRequests.parentFirstName,
+      parentLastName: registrationRequests.parentLastName,
+      parentEmail: registrationRequests.parentEmail,
+      parentPhone: registrationRequests.parentPhone,
+      emergencyContact: registrationRequests.emergencyContact,
+      emergencyPhone: registrationRequests.emergencyPhone,
+      medicalInfo: registrationRequests.medicalInfo,
+      status: registrationRequests.status,
+      reviewedBy: registrationRequests.reviewedBy,
+      reviewedAt: registrationRequests.reviewedAt,
+      createdAt: registrationRequests.createdAt,
+      updatedAt: registrationRequests.updatedAt
+    })
+    .from(registrationRequests)
+    .leftJoin(gyms, eq(registrationRequests.gymId, gyms.id))
+    .orderBy(desc(registrationRequests.createdAt));
   }
 
   async getRegistrationRequest(id: string): Promise<RegistrationRequest | undefined> {

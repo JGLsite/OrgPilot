@@ -2516,6 +2516,9 @@ export default function AdminDashboard() {
                             <span className="font-medium">Birth Date:</span> {new Date(request.birthDate).toLocaleDateString()}
                           </div>
                           <div className="col-span-2">
+                            <span className="font-medium">Gym:</span> {request.gymName} ({request.gymCity})
+                          </div>
+                          <div className="col-span-2">
                             <span className="font-medium">Parent:</span> {request.parentFirstName} {request.parentLastName}
                           </div>
                           <div>

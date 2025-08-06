@@ -1132,8 +1132,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Registration request not found" });
       }
 
+      // Use a valid admin user ID - let's create or use the existing demo admin
+      const adminUserId = 'demo-admin-123';
+      
       // Approve the request
-      const approvedRequest = await storage.approveRegistrationRequest(req.params.id, 'test-admin');
+      const approvedRequest = await storage.approveRegistrationRequest(req.params.id, adminUserId);
       
       // Create gymnast account
       const newGymnast = await storage.createGymnast({
